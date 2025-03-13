@@ -1,0 +1,141 @@
+---
+title: "Benthic_cover"
+format: html
+editor: visual
+---
+
+# Libraries
+
+```{r}
+#| label: libraries
+#| output: false
+#| eval: true
+#| warning: false
+#| message: false
+#| cache: false
+
+library(tidyverse)
+#library(rstanarm)
+library(brms)
+library(coda)
+library(bayesplot)
+library(DHARMa)
+library(emmeans)
+library(broom)
+library(tidybayes)
+library(ggeffects)
+library(broom.mixed)
+library(bayestestR)
+library(see)
+library(easystats)
+library(patchwork)
+library(ggridges)
+source("helperFunctions.R")
+library(ggimage)
+library(vegan)
+library(BiodiversityR)
+library(ggrepel)
+```
+
+# read data: macroalgae functional group
+
+```{r}
+m_fg <- read_csv("Data/macroalgae_functional_group.csv",
+               trim_ws = TRUE)
+
+glimpse(m_fg)
+```
+
+# subset data
+
+```{r}
+m_fg_v2 <- m_fg |> 
+  select(Site,
+         Depth,
+    `Articulated calcareous (Art-cal)`: `crustose algae (CA)`,
+          `Turf algae (TA)`,
+    Total_points) |> 
+  rename(Articulated_calcareous = `Articulated calcareous (Art-cal)`,
+         Corticated = `Corticated (Cort)`,
+         Corticated_foliose = `Corticated foliose (Cort-Fol)`,
+         Filamentous = `Filamentous (Fila)`,
+         Leathery = `Leathery (Leat)`,
+         Crustose_coralline_algae = `crustose algae (CA)`,
+         Turf_algae = `Turf algae (TA)`)
+```
+
+# long dataframe
+
+```{r}
+m_fg_long <- 
+  m_fg_v2 |> 
+  pivot_longer(cols = Articulated_calcareous: Crustose_coralline_algae, 
+               names_to = "Functional_group", 
+               values_to = "Frequency") |> 
+  mutate(Site = factor(Site),
+         Depth = factor(Depth),
+         Percentage = Frequency/Total_points*100) |> # convert to percentage cover 
+  rename(Depth_band = Depth)
+```
+
+# plot
+
+```{r}
+p_m_fg <- 
+m_fg_long |> 
+  ggplot(aes(fill = Functional_group,
+             y = Percentage,
+             x = Depth_band)) + 
+  #geom_bar(position = "dodge",
+   #        stat = "identity") +
+  geom_boxplot() +
+  facet_wrap(~ Functional_group) +
+  scale_y_continuous(name = "Percentage cover",
+                     limits = c(0, 100),
+                     breaks = seq(0, 100, by = 20)) +
+  theme_classic() +
+  theme(legend.position = "none",
+        axis.title = element_text(size = 15),
+        axis.text = element_text(size = 12),
+        strip.text = element_text(size = 15))
+```
+
+## ggsave
+
+```{r}
+ggsave("Fig. SX. macroalgae_functional_group.jpeg",
+       plot = p_m_fg, 
+       dpi = 600, 
+       height = 6, 
+       width = 10, 
+       units = "in")
+```
+
+# read data: major benthic categories
+
+```{r}
+mbc <- read_csv("Data/major_benthic_cover.csv", # data is in count
+               trim_ws = TRUE)
+
+glimpse(mbc)
+```
+
+# subset data
+
+```{r}
+mbc_v2 <- 
+  mbc |> 
+  select(Site,
+         Depth,
+         Coral,
+         Macroalgae,
+         `Turf algae`,
+         `Sand, pavement, rubble`,
+         Total_points) |> 
+  rename(Turf_algae = `Turf algae`,
+         Abiotic = `Sand, pavement, rubble`,
+         Depth_band = Depth) |> 
+  mutate(Total_algae = Macroalgae + Turf_algae,
+         Site = factor(Site),
+         Depth_band = factor(Depth_band))
+```
