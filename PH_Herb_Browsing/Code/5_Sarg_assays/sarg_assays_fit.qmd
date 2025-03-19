@@ -1,0 +1,329 @@
+---
+title: "sarg_assay_binomial_fit"
+format: html
+editor: visual
+---
+
+# libraries
+
+```{r}
+#| label: libraries
+#| output: false
+#| eval: true
+#| warning: false
+#| message: false
+#| cache: false
+
+library(tidyverse)
+#library(rstanarm)
+library(brms)
+library(coda)
+library(bayesplot)
+library(DHARMa)
+library(emmeans)
+library(broom)
+library(tidybayes)
+library(ggeffects)
+library(broom.mixed)
+library(bayestestR)
+library(see)
+library(easystats)
+library(patchwork)
+library(ggridges)
+source("helperFunctions.R")
+library(ggimage)
+library(vegan)
+library(BiodiversityR)
+library(ggrepel)
+```
+
+
+# read csv
+
+```{r}
+sarg_assay <- read_csv("Data/sarg_assays.csv",
+               trim_ws = TRUE)
+
+glimpse(sarg_assay)
+```
+
+# data prep: 96h deployment
+
+```{r}
+sarg_assay_96h <- 
+  sarg_assay |> 
+  filter(Hours_deployed == "96") |> 
+  select(Site,
+         Depth_band,
+         Treatment,
+         Initial_weight_g,
+         Final_weight_g,
+         Weight_removed_g) |> 
+  mutate(Site = factor(Site),
+         Depth_band = factor(Depth_band)) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "10m",
+                             "20" = "20m",
+                             "30" = "30m",
+                             "50" = "50m"))
+```
+
+# beta binomial model
+
+```{r}
+bb_sarg_96h_form <- bf(Weight_removed_g | trials(Initial_weight_g) ~ 
+                      Depth_band *
+                      Treatment +
+                      (1 | Site),
+                    family = beta_binomial(link = "logit"))
+```
+
+# get prior
+
+```{r}
+get_prior(bb_sarg_96h_form, data = sarg_assay_96h)
+# b, intercept, sd, phi (gamma 0.01, 0.01)
+```
+
+# examine data
+
+```{r}
+sarg_assay_96h |> 
+  group_by(Depth_band) |> 
+  summarise(med = median(qlogis(Weight_removed_g / Initial_weight_g)),
+            mad = mad(qlogis(Weight_removed_g / Initial_weight_g)),
+            N = mean(Initial_weight_g),
+            max = max(Initial_weight_g))
+```
+
+
+# define priors
+
+```{r}
+bb_prior_sarg_assay_96h <- prior(normal(1, 2.4), class = "Intercept") +
+  prior(normal(0, 1), class = "b") +
+  prior(student_t(3, 0, 2.4), class = "sd") +
+  prior(gamma(0.01, 0.01), class = "phi")
+```
+
+# prior model
+
+```{r}
+#| cache: true
+bb_sarg96_prior_mod <- brm(bb_sarg_96h_form,
+                    data = sarg_assay_96h,
+                    prior = bb_prior_sarg_assay_96h,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+# fit data to model
+
+```{r}
+#| cache: true
+bb_sarg96_mod <- update(bb_sarg96_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+# chain checks
+
+```{r}
+# trace
+bb_sarg96_mod |> mcmc_plot(type = "trace")
+# autocor
+bb_sarg96_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+bb_sarg96_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+bb_sarg96_mod |> mcmc_plot(type = "neff_hist")
+```
+
+# residuals
+
+```{r}
+bb_sarg96_resids <- make_brms_dharma_res(bb_sarg96_mod)
+# qqplot
+bb_sarg96_resids  |> testUniformity() # normality good
+# residual plot
+bb_sarg96_resids |> plotResiduals()
+```
+
+plot beta binom model
+
+```{r}
+#p_test_betabinom <- 
+#bb_sarg96_mod |> 
+#emmeans(~ Depth_band *
+ #         Treatment,
+  #      type = "link") |> 
+  #gather_emmeans_draws() |> 
+  #mutate(prob = plogis(.value),
+  #       percentage = prob * 100) |> 
+  #dplyr::select(-.chain,
+   #             -.iteration,
+    #            -.draw,
+     #           -.value) |> 
+  #summarise_draws(median,
+   #               HDInterval::hdi,
+    #              Pl = ~mean(.x < 1),
+     #             Pg = ~mean(.x > 1)) |> 
+  #filter(variable == "percentage") |> 
+  #ggplot(aes(x = Depth_band,
+   #          y = median,
+    #         fill = Treatment)) +
+  #geom_pointrange(aes(ymin = lower, 
+   #                   ymax = upper),
+    #              position = position_dodge(0.25),
+     #             shape = 21,
+      #            size = 1,
+       #           fatten = 3) +
+  #scale_y_continuous(expression(italic(Sargassum)~loss~("%")),
+   #                  limits = c(0,100),
+    #                 breaks = seq(0, 100, by = 20)) +
+  #theme_classic() +
+  #ggtitle("96 hours of deployment") +
+  #scale_fill_manual(values = c("#DDD487", "#8AA17D")) +
+  #theme(axis.title = element_text(size = 15),
+   #     axis.text = element_text(size = 12),
+    #    plot.title = element_text(size = 18),
+     #   legend.title = element_text(size = 18),
+      #  legend.text = element_text(size = 15))
+```
+
+Pairwise
+
+```{r}
+#coral_mod_pairs <- 
+#bb_sarg96_mod|> 
+#emmeans(~ Depth_band *
+ #         Treatment,
+  #      type = "link") |>
+  #pairs() |> 
+  #gather_emmeans_draws() |> # log-odds ratio
+  #mutate(.value = exp(.value)) |>    
+  #summarise(median_hdci(.value),
+   #         Pl = mean(.value < 1),
+   #         Pg = mean(.value > 1)) #,
+            #.width = c(0.85, 0.95))
+```
+
+# data prep: 3h deployment
+
+```{r}
+sarg_assay_3h <- 
+  sarg_assay |> 
+  filter(Hours_deployed == "3") |> 
+  select(Site,
+         Depth_band,
+         Treatment,
+         Initial_weight_g,
+         Final_weight_g,
+         Weight_removed_g) |> 
+  mutate(Site = factor(Site),
+         Depth_band = factor(Depth_band)) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "10m",
+                             "20" = "20m",
+                             "30" = "30m",
+                             "50" = "50m"))
+```
+
+# beta binomial model
+
+```{r}
+bb_sarg_3h_form <- bf(Weight_removed_g | trials(Initial_weight_g) ~ 
+                      Depth_band *
+                      Treatment +
+                      (1 | Site),
+                    family = beta_binomial(link = "logit"))
+```
+
+# get prior
+
+```{r}
+get_prior(bb_sarg_3h_form, data = sarg_assay_3h)
+# b, intercept, sd, phi (gamma 0.01, 0.01)
+```
+
+# examine data
+
+```{r}
+sarg_assay_3h |> 
+  group_by(Depth_band) |> 
+  summarise(med = median(qlogis(Weight_removed_g / Initial_weight_g)),
+            mad = mad(qlogis(Weight_removed_g / Initial_weight_g)),
+            N = mean(Initial_weight_g),
+            max = max(Initial_weight_g))
+```
+
+# define priors
+
+```{r}
+bb_prior_sarg_assay_3h <- prior(normal(-2.2, 1.5), class = "Intercept") +
+  prior(normal(0, 1), class = "b") +
+  prior(student_t(3, 0, 1.5), class = "sd") +
+  prior(gamma(0.01, 0.01), class = "phi")
+```
+
+# prior model
+
+```{r}
+#| cache: true
+bb_sarg3h_prior_mod <- brm(bb_sarg_3h_form,
+                    data = sarg_assay_3h,
+                    prior = bb_prior_sarg_assay_3h,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+# fit data to model
+
+```{r}
+#| cache: true
+bb_sarg3h_mod <- update(bb_sarg3h_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+# chain checks
+
+```{r}
+# trace
+bb_sarg3h_mod |> mcmc_plot(type = "trace")
+# autocor
+bb_sarg3h_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+bb_sarg3h_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+bb_sarg3h_mod |> mcmc_plot(type = "neff_hist")
+```
+
+# residuals
+
+```{r}
+bb_sarg3h_resids <- make_brms_dharma_res(bb_sarg3h_mod)
+# qqplot
+bb_sarg3h_resids  |> testUniformity() # normality good
+# residual plot
+bb_sarg3h_resids |> plotResiduals()
+```
+

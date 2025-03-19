@@ -163,6 +163,7 @@ p_benthic <-
 p_coral /
 p_macroalgae
 ```
+
 ## ggsave
 
 ```{r}
@@ -174,10 +175,9 @@ ggsave("Fig. 2. coral_macroalgae.jpeg",
        units = "in")
 ```
 
-
 # TOTAL ALGAE COVER: looks like macroalgae is driving this pattern so not gonna display it in the results
-s
-## summary tableaa
+
+s \## summary tableaa
 
 ```{r}
 ta_mod |> as_draws_df() |> 
@@ -235,5 +235,3 @@ emmeans(~ Depth_band,
     #         aes(image = "sargassum-spp.png"),
      #        size = 0.30)
 ```
-
-

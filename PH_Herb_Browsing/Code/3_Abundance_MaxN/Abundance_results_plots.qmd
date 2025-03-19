@@ -6,7 +6,7 @@ editor: visual
 
 # MAXN ABUNDANCE
 
-## Exceedence probability 
+## Exceedence probability
 
 ```{r}
 abun_mod |> as_draws_df() |> 
@@ -74,4 +74,3 @@ abun_nd |>
              aes(image = "siganid.png"),
              size = 0.30)
 ```
-
