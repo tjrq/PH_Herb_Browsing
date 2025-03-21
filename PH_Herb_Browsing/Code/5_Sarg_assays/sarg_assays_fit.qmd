@@ -47,6 +47,21 @@ sarg_assay <- read_csv("Data/sarg_assays.csv",
 glimpse(sarg_assay)
 ```
 
+# statistics for mean weight and height
+
+```{r}
+se_mean <- function(x) sd(x)/sqrt(length(x))
+
+sarg_assay |> 
+  summarise(mean_weight = mean(Initial_weight_g),
+            se_weight = se_mean(Initial_weight_g),
+            mean_height = mean(Initial_height_cm),
+            se_height = se_mean(Initial_height_cm),
+            min_height = min(Initial_height_cm),
+            max_height = max(Initial_height_cm))
+```
+
+
 # data prep: 96h deployment
 
 ```{r}
@@ -67,6 +82,13 @@ sarg_assay_96h <-
                              "30" = "30m",
                              "50" = "50m"))
 ```
+
+```{r}
+sarg_assay_96h |> 
+  group_by(Treatment) |> 
+  count(Treatment)
+```
+
 
 # beta binomial model
 

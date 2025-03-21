@@ -33,7 +33,7 @@ bites_brow <-
                              "10" = "10m",
                              "20" = "20m",
                              "30" = "30m",
-                             "50" = "50m")) # |> 
+                             "50" = "50m")) ## |>
   #summarise(m_bites = mean(Bites), #10
    #         mx_bites = max(Bites)) #300
 
@@ -237,3 +237,17 @@ nl_mod_hurdle|> mcmc_plot(type = "rhat_hist")
 # ess
 nl_mod_hurdle |> mcmc_plot(type = "neff_hist")
 ```
+
+# residuals
+
+
+```{r}
+nl_resids_hurd <- make_brms_dharma_res(nl_mod_hurdle )
+# qqplot
+nl_resids_hurd |> testUniformity() 
+# residual plot
+nl_resids_hurd |> plotResiduals()
+```
+
+# ALL BROWS
+

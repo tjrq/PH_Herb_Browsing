@@ -4,6 +4,18 @@ format: html
 editor: visual
 ---
 
+# 
+
+```{r}
+bites_naso |> 
+  group_by(Site,
+           Depth_band,
+           Replicate) |> 
+  filter(Depth_band == "50m") |> 
+  summarise(max_nl = max(Nl))
+```
+
+
 # NASO SPECIES
 
 # define formula (hurdle negbinomial)

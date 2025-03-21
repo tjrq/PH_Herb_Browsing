@@ -170,4 +170,3 @@ abun_resids |> plotResiduals() # not too bad
 # dispersion
 abun_resids |> testDispersion()
 ```
-

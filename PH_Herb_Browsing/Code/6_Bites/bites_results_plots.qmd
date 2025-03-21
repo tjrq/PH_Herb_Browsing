@@ -179,3 +179,14 @@ p_bites <-
   p_bites_nl /
   p_bites_nu + plot_annotation(tag_levels = "a")
 ```
+
+# ggsave 
+
+```{r}
+ggsave("Fig. 5. bites.jpeg",
+       plot =p_bites, 
+       dpi = 600, 
+       height = 8, 
+       width = 8, 
+       units = "in")
+```
