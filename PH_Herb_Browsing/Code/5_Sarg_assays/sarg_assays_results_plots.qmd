@@ -15,9 +15,10 @@ bb_sarg96_mod |>
                   HDInterval::hdi,
                   Pl= ~mean(.x < 1),
                   Pg = ~mean(.x > 1))
+# no interaction effect
 ```
 
-- no interaction term
+-   no interaction term
 
 # plot beta binom model
 
@@ -51,8 +52,9 @@ emmeans(~ Depth_band *
   scale_y_continuous(expression(italic(Sargassum)~loss~("%")),
                      limits = c(0,100),
                      breaks = seq(0, 100, by = 25)) +
+  scale_x_discrete(name = "Depth band") +
   theme_classic() +
-  ggtitle("96 hours of deployment") +
+  ggtitle("Deployment duration: 96h") +
   scale_fill_manual(values = c("#DDD487", "#8AA17D")) +
   theme(axis.title = element_text(size = 15),
         axis.text = element_text(size = 12),
@@ -60,14 +62,12 @@ emmeans(~ Depth_band *
         legend.position = "none")
 ```
 
-
-# Pairwise
+# pairwise
 
 ```{r}
 #coral_mod_pairs <- 
 bb_sarg96_mod|> 
-emmeans(~ Depth_band *
-          Treatment,
+emmeans(~ Depth_band,
         type = "link") |>
   pairs() |> 
   gather_emmeans_draws() |> # log-odds ratio
@@ -89,6 +89,8 @@ bb_sarg3h_mod |>
                   HDInterval::hdi,
                   Pl= ~mean(.x < 1),
                   Pg = ~mean(.x > 1))
+
+# interaction term
 ```
 
 # plot binom model
@@ -129,7 +131,7 @@ emmeans(~ Depth_band *
              aes(image = "sargassum-spp.png"),
              size = 0.30) + 
   theme_classic() +
-  ggtitle("3 hours of deployment") +
+  ggtitle("Deployment duration: 3h") +
   scale_fill_manual(values = c("#DDD487", "#8AA17D")) +
   theme(axis.title.y = element_text(size = 15),
         axis.text.y = element_text(size = 12),
@@ -140,10 +142,37 @@ emmeans(~ Depth_band *
         legend.text = element_text(size = 15))
 ```
 
+# pairwise
+
+```{r}
+bb_sarg3h_mod |> 
+emmeans(~ Treatment |
+          Depth_band,
+        type = "link") |>
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1))
+```
+
+
 # combine plots
 
 ```{r}
+p_sarg_assay <- 
 p_sarg_assay_3h / 
-p_sarg_assay_96
+p_sarg_assay_96 +
+  plot_annotation(tag_levels = "a") &
+  theme(plot.tag = element_text(size = 15))
 ```
 
+```{r}
+ggsave("Fig. 4. sarg_assays.jpeg",
+       plot = p_sarg_assay, 
+       dpi = 600, 
+       height = 8, 
+       width = 8, 
+       units = "in")
+```

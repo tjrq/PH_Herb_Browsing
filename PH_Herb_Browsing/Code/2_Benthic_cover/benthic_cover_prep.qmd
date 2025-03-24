@@ -78,26 +78,52 @@ m_fg_long <-
   rename(Depth_band = Depth)
 ```
 
+# standard error of the mean
+
+```{r}
+se_mean <- function(x) sd(x)/sqrt(length(x))
+```
+
+
+# group by
+
+```{r}
+m_fg_long |> 
+  group_by(Functional_group,
+           Depth_band) |> 
+  summarise(mean_perc = mean(Percentage),
+            se_mean_perc = se_mean(Percentage),
+            sd_perc = sd(Percentage)) 
+```
+
+
 # plot
 
 ```{r}
-p_m_fg <- 
 m_fg_long |> 
-  ggplot(aes(fill = Functional_group,
-             y = Percentage,
-             x = Depth_band)) + 
-  #geom_bar(position = "dodge",
-   #        stat = "identity") +
-  geom_boxplot() +
+  group_by(Functional_group,
+           Depth_band) |> 
+  summarise(mean_perc = mean(Percentage),
+            se_mean_perc = se_mean(Percentage),
+            sd_perc = sd(Percentage)) |> 
+  ggplot(aes(x = Depth_band,
+             y = mean_perc,
+             color = Functional_group)) +
+  geom_pointrange(aes(ymin = mean_perc - se_mean_perc,
+                      ymax = mean_perc + se_mean_perc)) + 
   facet_wrap(~ Functional_group) +
-  scale_y_continuous(name = "Percentage cover",
-                     limits = c(0, 100),
-                     breaks = seq(0, 100, by = 20)) +
   theme_classic() +
+  scale_x_discrete(name = "Depth band") +
+  scale_y_continuous(name = "Percentage cover",
+                     limits = c(0, 30),
+                     breaks = seq(0, 30, by = 10)) +
   theme(legend.position = "none",
-        axis.title = element_text(size = 15),
+         axis.title = element_text(size = 15),
         axis.text = element_text(size = 12),
-        strip.text = element_text(size = 15))
+        strip.text = element_text(size = 15)) #+
+  #geom_hline(yintercept = 10,
+   #          linetype = "dashed",
+    #         color = "red")
 ```
 
 ## ggsave

@@ -31,7 +31,7 @@ abun_nd <-
   mutate(Exp_abun = exp(.value)) |> 
   dplyr::select(-.chain,
                 -.iteration,
-                -.value) |> 
+                -.value) |> 0.
   summarise_draws(median, 
                   HDInterval::hdi) |> 
   as.data.frame()
@@ -74,3 +74,19 @@ abun_nd |>
              aes(image = "siganid.png"),
              size = 0.30)
 ```
+
+# pairwise
+
+```{r}
+abun_mod |> 
+emmeans(~ Depth_band,
+        type = "link") |>
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1))#,
+            #.width = c(0.85, 0.95))
+```
+

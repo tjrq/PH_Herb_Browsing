@@ -37,7 +37,6 @@ library(BiodiversityR)
 library(ggrepel)
 ```
 
-
 # read csv
 
 ```{r}
@@ -60,7 +59,6 @@ sarg_assay |>
             min_height = min(Initial_height_cm),
             max_height = max(Initial_height_cm))
 ```
-
 
 # data prep: 96h deployment
 
@@ -89,7 +87,6 @@ sarg_assay_96h |>
   count(Treatment)
 ```
 
-
 # beta binomial model
 
 ```{r}
@@ -117,7 +114,6 @@ sarg_assay_96h |>
             N = mean(Initial_weight_g),
             max = max(Initial_weight_g))
 ```
-
 
 # define priors
 
@@ -348,4 +344,3 @@ bb_sarg3h_resids  |> testUniformity() # normality good
 # residual plot
 bb_sarg3h_resids |> plotResiduals()
 ```
-

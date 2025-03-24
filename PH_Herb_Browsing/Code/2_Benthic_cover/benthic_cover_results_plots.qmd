@@ -18,6 +18,27 @@ coral_mod |> as_draws_df() |>
                   Pg = ~mean(.x > 1))
 ```
 
+## check coral values
+
+```{r}
+coral_mod |> 
+emmeans(~ Depth_band,
+        type = "link") |> 
+  gather_emmeans_draws() |> 
+  mutate(prob = plogis(.value),
+         percentage = prob * 100) |> 
+  dplyr::select(-.chain,
+                -.iteration,
+                -.draw,
+                -.value) |> 
+  summarise_draws(median,
+                  HDInterval::hdi,
+                  Pl = ~mean(.x < 1),
+                  Pg = ~mean(.x > 1)) |> 
+  filter(variable == "percentage")
+```
+
+
 ## plot coral and depth band
 
 ```{r}
@@ -95,6 +116,27 @@ ma_mod |> as_draws_df() |>
                   Pg = ~mean(.x > 1))
 ```
 
+## check macroalgae values
+
+```{r}
+ma_mod |> 
+emmeans(~ Depth_band,
+        type = "link") |> 
+  gather_emmeans_draws() |> 
+  mutate(prob = plogis(.value),
+         percentage = prob * 100) |> 
+  dplyr::select(-.chain,
+                -.iteration,
+                -.draw,
+                -.value) |> 
+  summarise_draws(median,
+                  HDInterval::hdi,
+                  Pl = ~mean(.x < 1),
+                  Pg = ~mean(.x > 1)) |> 
+  filter(variable == "percentage")
+```
+
+
 ## plot macroalgae and depth band
 
 ```{r}
@@ -132,6 +174,7 @@ emmeans(~ Depth_band,
         plot.title = element_text(size = 18),
         axis.text = element_text(size = 12),
         axis.title = element_text(size = 15)) +
+  scale_x_discrete(name = "Depth band") +
   theme(legend.position = "none") +
   ggtitle("Macroalgae") +
   geom_image(data = tibble(Depth_band = 4.2,
@@ -161,7 +204,9 @@ emmeans(~ Depth_band,
 ```{r}
 p_benthic <-
 p_coral /
-p_macroalgae
+p_macroalgae +
+  plot_annotation(tag_levels = "a") &
+  theme(plot.tag = element_text(size = 15))
 ```
 
 ## ggsave

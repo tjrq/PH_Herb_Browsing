@@ -39,6 +39,29 @@ bites_brow <-
 
 #glimpse(bites_brow)
 ```
+# eda for species responsible for browsing
+
+```{r}
+# bites_brow <- 
+  bites |> 
+  filter(Functional_group == "Browser") |> 
+  select(Site,
+         Depth_band,
+         Species,
+         Replicate,
+         Time,
+         Bites) |> 
+  mutate(Site = factor(Site),
+         Depth_band = factor(Depth_band),
+         Species = factor(Species)) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "10m",
+                             "20" = "20m",
+                             "30" = "30m",
+                             "50" = "50m")) |> 
+  group_by(Species) |> 
+  summarise(sum_bites = sum(Bites))
+```
 
 
 # group and widen data
@@ -136,7 +159,6 @@ nu_mod_hurdle <- update(nu_prior_mod_hurd,
                    refresh = 1000)
 ```
 
-
 # chain checks
 
 ```{r}
@@ -151,7 +173,6 @@ nu_mod_hurdle |> mcmc_plot(type = "neff_hist")
 ```
 
 # residuals
-
 
 ```{r}
 nu_resids_hurd <- make_brms_dharma_res(nu_mod_hurdle )
@@ -224,7 +245,6 @@ nl_mod_hurdle <- update(nl_prior_mod_hurd,
                    refresh = 1000)
 ```
 
-
 # chain checks
 
 ```{r}
@@ -240,7 +260,6 @@ nl_mod_hurdle |> mcmc_plot(type = "neff_hist")
 
 # residuals
 
-
 ```{r}
 nl_resids_hurd <- make_brms_dharma_res(nl_mod_hurdle )
 # qqplot
@@ -250,4 +269,3 @@ nl_resids_hurd |> plotResiduals()
 ```
 
 # ALL BROWS
-

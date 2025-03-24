@@ -1,0 +1,61 @@
+---
+title: "test_mapping"
+format: html
+editor: visual
+---
+
+# load packages
+
+```{r}
+library(sf)
+library(rio)
+library(maps)
+library(mapproj)
+library(magrittr)
+library(tidyverse) 
+```
+
+# base map of PH
+
+```{r}
+ph <- map_data("world") |> 
+  filter(region == "Philippines")
+```
+
+# glimpse ph
+
+```{r}
+glimpse(ph)
+```
+
+# plot basemap
+
+```{r}
+base_map <-
+ph |> 
+  ggplot() +
+  geom_polygon(aes(x = long,
+                   y = lat,
+                   group = group),
+               fill = "grey40",
+               color = "black",
+               size = 0.3) +
+  coord_map(orientation = c(90, 0, 150),
+            ylim = c(13, 18.5),
+            xlim = c(119, 124))
+```
+
+# upload .shp and .shx files
+
+```{r}
+shp_bolinao <- read_sf("philippines_Municipality_level_3.shp") |> 
+  filter(shape3 == "Alaminos")
+```
+
+```{r}
+base_map +
+  geom_sf(data = shp_bolinao, fill = "gray85", color = "black", size = 0.1) +
+  coord_sf(ylim = c(16, 17),
+           xlim = c(119, 120))
+```
+

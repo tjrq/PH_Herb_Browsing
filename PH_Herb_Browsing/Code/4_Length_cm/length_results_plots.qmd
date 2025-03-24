@@ -54,7 +54,7 @@ log_length_nd |>
   scale_y_continuous(name = "Total length (cm)",
                      limits = c(0, 40),
                      breaks = seq(0, 40, by = 10)) +
-  #scale_x_discrete(name = "") +
+  scale_x_discrete(name = "Depth band") +
   theme_classic() +
     #ggtitle("Total herbivores") +
      theme(
@@ -67,13 +67,15 @@ log_length_nd |>
 
 ```{r}
 p_abun_biom <- 
-p_brow_abun / p_brow_length
+p_brow_abun / p_brow_length +
+  plot_annotation(tag_levels = "a") &
+  theme(plot.tag = element_text(size = 15))
 ```
 
 ## ggsave
 
 ```{r}
-ggsave("Fig. 3. coral_macroalgae.jpeg",
+ggsave("Fig. 3. MaxN_length.jpeg",
        plot =p_abun_biom, 
        dpi = 600, 
        height = 8, 

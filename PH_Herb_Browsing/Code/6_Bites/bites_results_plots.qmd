@@ -36,7 +36,6 @@ nu_nd <-
   as.data.frame()
 ```
 
-
 # correct values for Nu: 0 for 20m since no observation at 20m
 
 ```{r}
@@ -54,6 +53,20 @@ nu_nd |>
                                         "20m",
                                         "30m",
                                         "50m")))
+```
+
+# pairwise
+
+```{r}
+ nu_mod_hurdle |> 
+emmeans(~ Depth_band,
+        type = "link") |>
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1))
 ```
 
 
@@ -74,14 +87,12 @@ nu_nd |>
   scale_y_continuous(name = "Number of bites (3h)",
                      limits = c(0, 250),
                      breaks = seq(0, 250, by = 50)) +
-  #scale_x_discrete(name = "") +
+  scale_x_discrete(name = "Depth band") +
   theme_classic() +
     ggtitle(expression(italic(Naso~unicornis))) +
-     theme(axis.title.x = element_blank(),
-           axis.text.x = element_blank(),
-           axis.ticks.x = element_blank(),
-        axis.title.y = element_text(size = 15),
-        axis.text.y = element_text(size = 12),
+     theme(
+        axis.title = element_text(size = 15),
+        axis.text = element_text(size = 12),
         plot.title = element_text(size = 18)) +
   geom_image(data = tibble(Depth_band = 4.2,
                            median = 240),
@@ -103,8 +114,22 @@ nu_nd |>
                   Pl= ~mean(.x < 1),
                   Pg = ~mean(.x > 1))
 ```
+# pairwise
 
-# newdata for NU
+```{r}
+ nl_mod_hurdle |> 
+emmeans(~ Depth_band,
+        type = "link") |>
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1))
+```
+
+
+# newdata for Nl
 
 ```{r}
 nl_nd <- 
@@ -177,10 +202,11 @@ nl_nd |>
 ```{r}
 p_bites <- 
   p_bites_nl /
-  p_bites_nu + plot_annotation(tag_levels = "a")
+  p_bites_nu + plot_annotation(tag_levels = "a") &
+  theme(plot.tag = element_text(size = 15))
 ```
 
-# ggsave 
+# ggsave
 
 ```{r}
 ggsave("Fig. 5. bites.jpeg",
