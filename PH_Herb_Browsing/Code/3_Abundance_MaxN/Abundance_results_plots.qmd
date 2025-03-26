@@ -81,7 +81,7 @@ abun_nd |>
 abun_mod |> 
 emmeans(~ Depth_band,
         type = "link") |>
-  pairs() |> 
+  pairs(reverse = TRUE) |> 
   gather_emmeans_draws() |> # odds-ratio
   mutate(.value = exp(.value)) |> # log odds-ratio  
   summarise(median_hdci(.value),
@@ -89,4 +89,3 @@ emmeans(~ Depth_band,
             Pg = mean(.value > 1))#,
             #.width = c(0.85, 0.95))
 ```
-

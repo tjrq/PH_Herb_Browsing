@@ -157,6 +157,19 @@ emmeans(~ Treatment |
             Pg = mean(.value > 1))
 ```
 
+```{r}
+bb_sarg3h_mod |> 
+emmeans(~ 
+          Depth_band,
+        type = "link") |>
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1))
+```
+
 
 # combine plots
 

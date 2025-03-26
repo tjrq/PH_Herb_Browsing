@@ -82,3 +82,18 @@ ggsave("Fig. 3. MaxN_length.jpeg",
        width = 8, 
        units = "in")
 ```
+
+# pairwise
+
+```{r}
+log_length_mod |> 
+emmeans(~ Depth_band,
+        type = "link") |>
+  pairs(reverse = TRUE) |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1))
+```
+
