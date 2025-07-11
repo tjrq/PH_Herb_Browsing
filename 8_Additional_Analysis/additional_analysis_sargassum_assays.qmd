@@ -1,0 +1,1042 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+# libraries
+
+```{r}
+#| label: libraries
+#| output: false
+#| eval: true
+#| warning: false
+#| message: false
+#| cache: false
+
+library(tidyverse)
+#library(rstanarm)
+library(brms)
+library(coda)
+library(bayesplot)
+library(DHARMa)
+library(emmeans)
+library(broom)
+library(tidybayes)
+library(ggeffects)
+library(broom.mixed)
+library(bayestestR)
+library(see)
+library(easystats)
+library(patchwork)
+library(ggridges)
+source("helperFunctions.R")
+library(ggimage)
+library(vegan)
+library(BiodiversityR)
+library(ggrepel)
+set.seed(123)
+```
+
+# read csv
+
+```{r}
+sarg_assay <- read_csv("Data/sarg_assays.csv",
+               trim_ws = TRUE)
+```
+
+# data prep: subset 96h deployment
+
+```{r}
+sarg_assay_96h <- 
+  sarg_assay |> 
+  filter(Hours_deployed == "96") |> 
+  select(Site,
+         Depth_band,
+         Treatment,
+         Initial_weight_g,
+         Final_weight_g,
+         Weight_removed_g) |> 
+  mutate(Site = factor(Site),
+         Depth_band = factor(Depth_band)) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "10m",
+                             "20" = "20m",
+                             "30" = "30m",
+                             "50" = "50m"))
+```
+
+## data prep: subset 3h data
+
+```{r}
+sarg_assay_3h <- 
+  sarg_assay |> 
+  filter(Hours_deployed == "3") |> 
+  select(Site,
+         Depth_band,
+         Treatment,
+         Initial_weight_g,
+         Final_weight_g,
+         Weight_removed_g) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "0-10m",
+                             "20" = "11-20m",
+                             "30" = "30-40m",
+                             "50" = "41-50m")) |> 
+  mutate(Depth_band = factor(Depth_band))
+```
+
+# ANALYSIS: partitioned per depth
+
+# MODEL for 4 day experiment
+
+## prepare data
+
+```{r}
+# 30m
+sarg_assay_96h_30m <- 
+sarg_assay_96h |> 
+  filter(Depth_band != "50m") |> 
+  droplevels()
+
+# 50m
+sarg_assay_96h_50m <- 
+sarg_assay_96h |> 
+  filter(Site == "Arnedo" | Site == "Lucero") |> 
+  droplevels()
+
+# 50m only
+sarg_assay_96h_50m_only <- 
+sarg_assay_96h |> 
+  filter(Site == "Arnedo" | Site == "Lucero") |> 
+  filter(Depth_band == "50m") |> 
+  droplevels()
+
+# 4 samples
+sarg_assay_96h_4samples <- 
+  sarg_assay_96h |> 
+  filter(Site == "Arnedo" | Site == "Lucero") |> 
+  filter(Depth_band != "50m") |> 
+  droplevels() |> 
+  group_by(Depth_band,
+           Site,
+           Treatment) |> 
+  slice_sample(n = 4)
+
+# rowbind
+sarg_assay_96h_standardized <-
+  rbind(sarg_assay_96h_4samples,
+        sarg_assay_96h_50m_only)
+```
+
+# 30m
+
+## formula
+
+```{r}
+logm_sarg_96h_form_30m <- bf(Weight_removed_g ~ 
+                      Depth_band *
+                      Treatment +
+                      (1 | Site),
+                    family = hurdle_lognormal())
+```
+
+## examine data
+
+```{r}
+sarg_assay_96h_30m |> 
+  group_by(Depth_band) |> 
+  summarise(log_med = median(log(Weight_removed_g)),
+            log_mad = mad(log(Weight_removed_g)))
+```
+
+## weakly informative priors
+
+```{r}
+logm_prior_sarg_assay_96h30m <- prior(normal(2.7, 1.4), class = "Intercept") +
+  prior(normal(0, 0.2), class = "b") +
+  prior(student_t(3, 0, 1.4), class = "sd") +
+  prior(student_t(3, 0, 1.4), class = "sigma") +
+  prior(beta(1, 1), class = "hu")
+```
+
+## prior model
+
+```{r}
+#| cache: true
+logm_sarg96h30m_prior_mod <- brm(logm_sarg_96h_form_30m,
+                    data = sarg_assay_96h_30m,
+                    prior = logm_prior_sarg_assay_96h30m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+logm_sarg96h30m_mod <- update(logm_sarg96h30m_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+### chain checks
+
+```{r}
+# trace
+logm_sarg96h30m_mod |> mcmc_plot(type = "trace")
+# autocor
+logm_sarg96h30m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+logm_sarg96h30m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+logm_sarg96h30m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+### residuals
+
+```{r}
+logm_sarg96h30m_resids <- make_brms_dharma_res(logm_sarg96h30m_mod)
+# qqplot
+logm_sarg96h30m_resids  |> testUniformity() # normality good
+# residual plot
+logm_sarg96h30m_resids |> plotResiduals()
+```
+
+#### save model
+
+```{r}
+save(logm_sarg96h30m_mod, file = "Model_Outputs/logm_sarg96h30m_mod.Rdata")
+```
+
+# 50m (Site partition)
+
+## formula
+
+```{r}
+logm_sarg_96h_form_50m <- bf(Weight_removed_g ~ 
+                      Depth_band *
+                      Treatment +
+                      (1 | Site),
+                    family = hurdle_lognormal())
+```
+
+## examine data
+
+```{r}
+sarg_assay_96h_50m |> 
+  group_by(Depth_band) |> 
+  summarise(log_med = median(log(Weight_removed_g)),
+            log_mad = mad(log(Weight_removed_g)))
+```
+
+## weakly informative priors
+
+```{r}
+logm_prior_sarg_assay_96h50m <- prior(normal(2.8, 1.3), class = "Intercept") +
+  prior(normal(0, 0.4), class = "b") +
+  prior(student_t(3, 0, 1.3), class = "sd") +
+  prior(student_t(3, 0, 1.3), class = "sigma") +
+  prior(beta(1, 1), class = "hu")
+```
+
+## prior model
+
+```{r}
+#| cache: true
+logm_sarg96h50m_prior_mod <- brm(logm_sarg_96h_form_50m,
+                    data = sarg_assay_96h_50m,
+                    prior = logm_prior_sarg_assay_96h50m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+logm_sarg96h50m_mod <- update(logm_sarg96h50m_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+### chain checks
+
+```{r}
+# trace
+logm_sarg96h50m_mod |> mcmc_plot(type = "trace")
+# autocor
+logm_sarg96h50m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+logm_sarg96h50m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+logm_sarg96h50m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+### residuals
+
+```{r}
+logm_sarg96h50m_resids <- make_brms_dharma_res(logm_sarg96h50m_mod)
+# qqplot
+logm_sarg96h50m_resids  |> testUniformity() # normality good
+# residual plot
+logm_sarg96h50m_resids |> plotResiduals()
+```
+
+#### save model
+
+```{r}
+save(logm_sarg96h50m_mod, file = "Model_Outputs/logm_sarg96h50m_mod.Rdata")
+```
+
+# 50m (standardized)
+
+## formula
+
+```{r}
+logm_sarg_96h_form_50m_stand <- bf(Weight_removed_g ~ 
+                      Depth_band *
+                      Treatment +
+                      (1 | Site),
+                    family = hurdle_lognormal())
+```
+
+## examine data
+
+```{r}
+sarg_assay_96h_standardized |> 
+  group_by(Depth_band) |> 
+  summarise(log_med = median(log(Weight_removed_g)),
+            log_mad = mad(log(Weight_removed_g)))
+```
+
+## weakly informative priors
+
+```{r}
+logm_prior_sarg_assay_96h50m_stand <- prior(normal(2.9, 1.5), class = "Intercept") +
+  prior(normal(0, 0.4), class = "b") +
+  prior(student_t(3, 0, 1.5), class = "sd") +
+  prior(student_t(3, 0, 1.5), class = "sigma") +
+  prior(beta(1, 1), class = "hu")
+```
+
+## prior model
+
+```{r}
+#| cache: true
+logm_sarg96h50m_stand_prior_mod <- brm(logm_sarg_96h_form_50m_stand,
+                    data = sarg_assay_96h_standardized,
+                    prior = logm_prior_sarg_assay_96h50m_stand,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+logm_sarg96h50m_stand_mod <- update(logm_sarg96h50m_stand_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+### chain checks
+
+```{r}
+# trace
+logm_sarg96h50m_stand_mod |> mcmc_plot(type = "trace")
+# autocor
+logm_sarg96h50m_stand_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+logm_sarg96h50m_stand_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+logm_sarg96h50m_stand_mod |> mcmc_plot(type = "neff_hist")
+```
+
+### residuals
+
+```{r}
+logm_sarg96h50m_stand_resids <- make_brms_dharma_res(logm_sarg96h50m_stand_mod)
+# qqplot
+logm_sarg96h50m_stand_resids |> testUniformity() # normality good
+# residual plot
+logm_sarg96h50m_stand_resids |> plotResiduals()
+```
+
+#### save model
+
+```{r}
+save(logm_sarg96h50m_stand_mod, file = "Model_Outputs/logm_sarg96h50m_stand_mod.Rdata")
+```
+
+# MODEL for 3h experiment
+
+## prepare data
+
+```{r}
+# 30m
+sarg_assay_3h_30m <- 
+sarg_assay_3h |> 
+  filter(Depth_band != "41-50m") |> 
+  droplevels()
+
+# 50m
+sarg_assay_3h_50m <- 
+sarg_assay_3h |> 
+  filter(Site == "Arnedo" | Site == "Lucero") |> 
+  droplevels()
+```
+
+# 30m
+
+### formula
+
+```{r}
+logm_sarg_3h30m_form <- bf(Weight_removed_g ~ 
+                      Depth_band *
+                      Treatment +
+                      (1 | Site),
+                    family = hurdle_lognormal())
+```
+
+### examine data
+
+```{r}
+sarg_assay_3h_30m |> 
+  group_by(Depth_band) |>
+  summarise(log_med = median(log(Weight_removed_g)),
+            log_mad = mad(log(Weight_removed_g)))
+```
+
+### weakly informative priors
+
+```{r}
+logm_prior_sarg_assay_3h30m <- prior(normal(1.4, 1.3), class = "Intercept") +
+  prior(normal(0, 0.2), class = "b") +
+  prior(student_t(3, 0, 1.3), class = "sd") +
+  prior(student_t(3, 0, 1.3), class = "sigma") +
+  prior(beta(1, 1), class = "hu")
+```
+
+## prior model
+
+```{r}
+#| cache: true
+logm_sarg3h30m_prior_mod <- brm(logm_sarg_3h30m_form,
+                    data = sarg_assay_3h_30m,
+                    prior = logm_prior_sarg_assay_3h30m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+logm_sarg3h30m_mod <- update(logm_sarg3h30m_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+### chain checks
+
+```{r}
+# trace
+logm_sarg3h30m_mod |> mcmc_plot(type = "trace")
+# autocor
+logm_sarg3h30m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+logm_sarg3h30m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+logm_sarg3h30m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+### residuals
+
+```{r}
+logm_sarg3h30m_resids <- make_brms_dharma_res(logm_sarg3h30m_mod)
+# qqplot
+logm_sarg3h30m_resids |> testUniformity() # normality good
+# residual plot
+logm_sarg3h30m_resids |> plotResiduals()
+```
+
+#### save model
+
+```{r}
+save(logm_sarg3h30m_mod, file = "Model_Outputs/logm_sarg3h30m_mod.Rdata")
+```
+
+# 50m
+
+### formula
+
+```{r}
+logm_sarg_3h50m_form <- bf(Weight_removed_g ~ 
+                      Depth_band *
+                      Treatment +
+                      (1 | Site),
+                    family = hurdle_lognormal())
+```
+
+### examine data
+
+```{r}
+sarg_assay_3h_50m |> 
+  group_by(Depth_band) |>
+  summarise(log_med = median(log(Weight_removed_g)),
+            log_mad = mad(log(Weight_removed_g)))
+```
+
+### weakly informative priors
+
+```{r}
+logm_prior_sarg_assay_3h50m <- prior(normal(1.1, 1.4), class = "Intercept") +
+  prior(normal(0, 0.3), class = "b") +
+  prior(student_t(3, 0, 1.4), class = "sd") +
+  prior(student_t(3, 0, 1.4), class = "sigma") +
+  prior(beta(1, 1), class = "hu")
+```
+
+## prior model
+
+```{r}
+#| cache: true
+logm_sarg3h50m_prior_mod <- brm(logm_sarg_3h50m_form,
+                    data = sarg_assay_3h_50m,
+                    prior = logm_prior_sarg_assay_3h50m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+logm_sarg3h50m_mod <- update(logm_sarg3h50m_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+### chain checks
+
+```{r}
+# trace
+logm_sarg3h50m_mod |> mcmc_plot(type = "trace")
+# autocor
+logm_sarg3h50m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+logm_sarg3h50m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+logm_sarg3h50m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+### residuals
+
+```{r}
+logm_sarg3h50m_resids <- make_brms_dharma_res(logm_sarg3h50m_mod)
+# qqplot
+logm_sarg3h50m_resids |> testUniformity() # normality good
+# residual plot
+logm_sarg3h50m_resids |> plotResiduals()
+```
+
+#### save model
+
+```{r}
+save(logm_sarg3h50m_mod, file = "Model_Outputs/logm_sarg3h50m_mod.Rdata")
+```
+
+# Analysis: testing for differences in mass loss in the caged treatments
+
+Sarg mass loss may have been influenced by the method of retrieval (ie the hauling of the assays). To determine if indeed there was an effect, the "before" and "after" treatments for the 3h surveys were examined. If the hauling method did have an effect then it was expected that there would be more mass loss in the "after" compared to "before" in the caged treatments.
+
+## subset 3h, pivot longer and plot
+
+```{r}
+sarg_assay |> 
+  group_by(Depth_band,
+           Treatment) |> 
+  filter(Hours_deployed == "3") |> 
+  select(Site,
+         Depth_band,
+         Treatment,
+         Initial_weight_g,
+         Final_weight_g) |> 
+  #filter(Initial_weight_g != "207") |> 
+  pivot_longer(cols = c(Initial_weight_g,
+                        Final_weight_g),
+               names_to = "Initial_Final_Weight",
+               values_to = "Grams") |> 
+  mutate(Initial_Final_Weight = fct_relevel(Initial_Final_Weight,
+                                            "Initial_weight_g")) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "0-10m",
+                             "20" = "11-20m",
+                             "30" = "30-40m",
+                             "50" = "41-50m")) |> 
+    mutate(Initial_Final_Weight = recode(Initial_Final_Weight,
+                                       "Initial_weight_g" = "Initial weight (g)",
+                                       "Final_weight_g" = "Final weight (g)")) |> 
+  group_by(Initial_Final_Weight,
+           Treatment,
+           Depth_band) |> 
+  summarise(mean = mean(Grams, na.rm = TRUE),
+            sem = sd(Grams, na.rm = TRUE) / sqrt(n())) |> 
+  ggplot(aes(x = Initial_Final_Weight,
+             y = mean,
+             fill = Initial_Final_Weight)) + 
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = mean - sem,
+                    ymax = mean + sem),
+                width = 0.2) +
+  facet_grid(Depth_band ~ Treatment) +
+  scale_y_continuous(expression(Mean~italic(Sargassum)~loss~(g))) +
+  scale_x_discrete(name = "") +
+  theme_classic() +
+  theme(legend.position = "none")
+```
+
+##summary table
+
+```{r}
+sarg_assay |> 
+  group_by(Depth_band,
+           Treatment) |> 
+  filter(Hours_deployed == "3") |> 
+  select(Site,
+         Depth_band,
+         Treatment,
+         Initial_weight_g,
+         Final_weight_g) |> 
+  #filter(Initial_weight_g != "207") |> 
+  pivot_longer(cols = c(Initial_weight_g,
+                        Final_weight_g),
+               names_to = "Initial_Final_Weight",
+               values_to = "Grams") |> 
+  mutate(Initial_Final_Weight = fct_relevel(Initial_Final_Weight,
+                                            "Initial_weight_g")) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "0-10m",
+                             "20" = "11-20m",
+                             "30" = "30-40m",
+                             "50" = "41-50m")) |> 
+    mutate(Initial_Final_Weight = recode(Initial_Final_Weight,
+                                       "Initial_weight_g" = "Initial weight (g)",
+                                       "Final_weight_g" = "Final weight (g)")) |> 
+  group_by(Initial_Final_Weight,
+           Treatment,
+           Depth_band) |> 
+  summarise(mean = mean(Grams, na.rm = TRUE),
+            sem = sd(Grams, na.rm = TRUE) / sqrt(n())) |> 
+  filter(Treatment == "Caged") |> 
+  droplevels()
+```
+
+# Run models
+
+## 3h deployment
+
+## create db for caged and then run tests to compare before and after
+
+```{r}
+supp_sarg_assay_3h_caged <-
+sarg_assay |> 
+  group_by(Depth_band,
+           Treatment) |> 
+  filter(Hours_deployed == "3") |>
+  filter(Treatment == "Caged") |> 
+  select(Site,
+         Depth_band,
+         Treatment,
+         Hours_deployed,
+         Initial_weight_g,
+         Final_weight_g) |> 
+  pivot_longer(cols = c(Initial_weight_g,
+                        Final_weight_g),
+               names_to = "Initial_Final_Weight",
+               values_to = "Grams") |> 
+  mutate(Initial_Final_Weight = fct_relevel(Initial_Final_Weight,
+                                            "Initial_weight_g")) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "0-10m",
+                             "20" = "11-20m",
+                             "30" = "30-40m",
+                             "50" = "41-50m"))
+```
+
+### formula
+
+```{r}
+supp_caged3h_form <- bf(Grams ~ 
+                      Initial_Final_Weight *
+                      Depth_band +
+                      (1 | Site),
+                    family = gaussian())
+```
+
+### getprior
+
+```{r}
+get_prior(supp_caged3h_form, data = supp_sarg_assay_3h_caged)
+```
+
+### examine data
+
+```{r}
+#supp_sarg_assay_3h_caged |> 
+ # group_by(Initial_Final_Weight) |> 
+  #summarise(log_med = median(log(Grams)),
+   #         log_mad = mad(log(Grams)))
+
+supp_sarg_assay_3h_caged |> 
+  group_by(Initial_Final_Weight) |> 
+  summarise(med = median(Grams),
+            mad = mad(Grams))
+```
+
+### weakly informative priors
+
+```{r}
+supp_caged3h_prior <- prior(normal(28, 15), class = "Intercept") +
+  prior(normal(0, 1), class = "b") +
+  prior(student_t(3, 0, 15), class = "sd") +
+  prior(student_t(3, 0, 15), class = "sigma") #+
+  #prior(beta(1, 1), class = "hu")
+```
+
+### prior model
+
+```{r}
+#| cache: true
+supp_caged3h_prior_mod <- brm(supp_caged3h_form,
+                    data = supp_sarg_assay_3h_caged,
+                    prior = supp_caged3h_prior,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+### fit data to model
+
+```{r}
+#| cache: true
+supp_caged3h_mod <- update(supp_caged3h_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 2000)
+```
+
+#### chain checks
+
+```{r}
+# trace
+supp_caged3h_mod |> mcmc_plot(type = "trace")
+# autocor
+supp_caged3h_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+supp_caged3h_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+supp_caged3h_mod |> mcmc_plot(type = "neff_hist")
+```
+
+#### residuals
+
+```{r}
+supp_caged3h_resids <- make_brms_dharma_res(supp_caged3h_mod)
+# qqplot
+supp_caged3h_resids  |> testUniformity() 
+# residual plot
+supp_caged3h_resids |> plotResiduals(quantreg=FALSE)
+```
+
+#### summary table
+
+```{r}
+supp_caged3h_mod  |> as_draws_df() |> 
+  dplyr::select(matches("^b_.*")) |> 
+  exp() |> 
+  summarise_draws(median,
+                  HDInterval::hdi,
+                  Pl= ~mean(.x < 1),
+                  Pg = ~mean(.x > 1)) #|> 
+  #filter(Pl > 0.85 | 
+   #        Pg > 0.85)
+```
+
+##### pairwise among depth bands
+
+```{r}
+supp_caged3h_mod |> 
+emmeans(~  Initial_Final_Weight |
+          Depth_band,
+        type = "link") |>
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1))
+```
+
+###### save model
+
+```{r}
+save(supp_caged3h_mod, file = "Model_Outputs/supp_caged3h_mod.Rdata")
+```
+
+###### newdata
+
+```{r}
+supp_caged3h_mod |> 
+  emmeans(~  Initial_Final_Weight |
+          Depth_band,
+        type = "link") |> 
+  gather_emmeans_draws() |> 
+  #mutate(Exp_grams = exp(.value)) |> 
+  dplyr::select(-.chain,
+                -.iteration) |> 
+  summarise_draws(median, 
+                  HDInterval::hdi) |> 
+  as.data.frame()
+```
+
+## 96h deployment
+
+## create db for caged and then run tests to compare before and after
+
+```{r}
+supp_sarg_assay_96h_caged <-
+sarg_assay |> 
+  group_by(Depth_band,
+           Treatment) |> 
+  filter(Hours_deployed == "96") |>
+  filter(Treatment == "Caged") |> 
+  select(Site,
+         Depth_band,
+         Treatment,
+         Hours_deployed,
+         Initial_weight_g,
+         Final_weight_g) |> 
+  pivot_longer(cols = c(Initial_weight_g,
+                        Final_weight_g),
+               names_to = "Initial_Final_Weight",
+               values_to = "Grams") |> 
+  mutate(Initial_Final_Weight = fct_relevel(Initial_Final_Weight,
+                                            "Initial_weight_g")) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "0-10m",
+                             "20" = "11-20m",
+                             "30" = "30-40m",
+                             "50" = "41-50m"))
+```
+
+### formula
+
+```{r}
+supp_caged96h_form <- bf(Grams ~ 
+                      Initial_Final_Weight *
+                      Depth_band +
+                      (1 | Site),
+                    family = hurdle_lognormal())
+```
+
+### getprior
+
+```{r}
+get_prior(supp_caged3h_form, data = supp_sarg_assay_3h_caged)
+```
+
+### examine data
+
+```{r}
+supp_sarg_assay_96h_caged |> 
+  group_by(Initial_Final_Weight) |> 
+  summarise(log_med = median(log(Grams)),
+            log_mad = mad(log(Grams)))
+
+#supp_sarg_assay_96h_caged |> 
+ # group_by(Initial_Final_Weight) |> 
+  #summarise(med = median(Grams),
+   #         mad = mad(Grams))
+```
+
+### weakly informative priors
+
+```{r}
+supp_caged96h_prior <- prior(normal(3.4, 0.7), class = "Intercept") +
+  prior(normal(0, 1.3), class = "b") +
+  prior(student_t(3, 0, 0.7), class = "sd") +
+  prior(student_t(3, 0, 0.7), class = "sigma") +
+  prior(beta(1, 1), class = "hu")
+```
+
+### prior model
+
+```{r}
+#| cache: true
+supp_caged96h_prior_mod <- brm(supp_caged96h_form,
+                    data = supp_sarg_assay_96h_caged,
+                    prior = supp_caged96h_prior,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+### fit data to model
+
+```{r}
+#| cache: true
+supp_caged96h_mod <- update(supp_caged96h_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 2000)
+```
+
+#### chain checks
+
+```{r}
+# trace
+supp_caged96h_mod |> mcmc_plot(type = "trace")
+# autocor
+supp_caged96h_mod|> mcmc_plot(type = "acf_bar")
+# rhat
+supp_caged96h_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+supp_caged96h_mod |> mcmc_plot(type = "neff_hist")
+```
+
+#### residuals
+
+```{r}
+supp_caged96h_resids <- make_brms_dharma_res(supp_caged96h_mod)
+# qqplot
+supp_caged96h_resids  |> testUniformity() 
+# residual plot
+supp_caged96h_resids |> plotResiduals(quantreg=FALSE)
+```
+
+#### summary table
+
+```{r}
+supp_caged96h_mod |> as_draws_df() |> 
+  dplyr::select(matches("^b_.*")) |> 
+  exp() |> 
+  summarise_draws(median,
+                  HDInterval::hdi,
+                  Pl= ~mean(.x < 1),
+                  Pg = ~mean(.x > 1)) #|> 
+  #filter(Pl > 0.85 | 
+   #        Pg > 0.85)
+```
+
+##### pairwise among depth bands
+
+```{r}
+supp_caged96h_mod |> 
+emmeans(~  Initial_Final_Weight *
+          Depth_band,
+        type = "link") |>
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1)) |> 
+  filter(Pl > 0.85 | Pg > 0.85)
+```
+
+###### save model
+
+```{r}
+save(supp_caged96h_mod, file = "Model_Outputs/supp_caged96h_mod.Rdata")
+```
+
+### newdata
+
+```{r}
+supp_caged96h_mod |> 
+  emmeans(~ Depth_band *
+            Initial_Final_Weight, 
+          type = "link") |> 
+  gather_emmeans_draws() |> 
+  mutate(Exp_grams = exp(.value)) |> 
+  dplyr::select(-.chain,
+                -.iteration,
+                -.value) |> 
+  summarise_draws(median, 
+                  HDInterval::hdi) |> 
+  as.data.frame()
+```
+
+# RESULTS: Effect of retrieval
+
+Within three hours of deployment, there was no visual evidence to suggest that the method of retrieval influenced the removal of macroalgal mass as there was not much difference in the "before" and "after" mass of Sargassum in the caged treatments.
+
+

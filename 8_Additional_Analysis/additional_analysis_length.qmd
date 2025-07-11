@@ -1,0 +1,279 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+# libraries
+
+```{r}
+#| label: libraries
+#| output: false
+#| eval: true
+#| warning: false
+#| message: false
+#| cache: false
+
+library(tidyverse)
+#library(rstanarm)
+library(brms)
+library(coda)
+library(bayesplot)
+library(DHARMa)
+library(emmeans)
+library(broom)
+library(tidybayes)
+library(ggeffects)
+library(broom.mixed)
+library(bayestestR)
+library(see)
+library(easystats)
+library(patchwork)
+library(ggridges)
+source("helperFunctions.R")
+library(ggimage)
+library(vegan)
+library(BiodiversityR)
+library(ggrepel)
+set.seed(123)
+```
+
+# read csv
+
+```{r}
+brow_length <- read_csv("Data/total_length_cm.csv",
+               trim_ws = TRUE)
+```
+
+# prepare data
+
+```{r}
+brow_length_v2 <-
+  brow_length |> 
+  select(Site,
+         Depth_band,
+         Species,
+         Size_cm) |> 
+  mutate(Site = factor(Site),
+         Depth_band = factor(Depth_band)) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "10m",
+                             "20" = "20m",
+                             "30" = "30m",
+                             "50" = "50m"))
+```
+
+# Analysis: partitioned to max depth
+
+## prepare database
+
+```{r}
+# 30m
+brow_length_30m <-
+brow_length_v2 |> 
+  filter(Depth_band != "50m")
+
+# 50m
+brow_length_50m <-
+brow_length_v2 |> 
+  filter(Site == "Arnedo" |
+           Site == "Lucero")
+```
+
+# 30m
+
+## formula
+
+```{r}
+log_length30m_form <- 
+  bf(Size_cm ~ Depth_band +
+       (1 | Site), 
+     family = hurdle_lognormal())
+```
+
+## explore data
+
+```{r}
+brow_length_30m |> 
+  group_by(Depth_band) |> 
+  summarise(median = log(median(Size_cm)),
+            mad = log(mad(Size_cm)))
+```
+
+## define priors
+
+```{r}
+log_length30m_priors <- prior(normal(2.7, 1.2), class = "Intercept") +
+  prior(normal(0, 1), class = "b") +
+  prior(student_t(3, 0, 1.2), class = "sigma") +
+  prior(student_t(3, 0, 1.2), class = "sd") +
+  prior(beta(1, 1), class = "hu")
+```
+
+## prior mod
+
+```{r}
+#| cache: true
+log_length30m_prio_mod <- brm(log_length30m_form,
+                    data = brow_length_30m,
+                    prior = log_length30m_priors,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## evaluate prior model
+
+```{r}
+log_length30m_prio_mod |> conditional_effects() |> 
+  plot(points = TRUE,
+       ask = FALSE,
+       plot = FALSE) |> 
+  wrap_plots()  &
+  scale_y_log10()
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+log_length30m_mod <- update(log_length30m_prio_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   #control = list(adapt_delta = 0.99,
+                    #               max_treedepth = 20),
+                   refresh = 1000)
+```
+
+### chain checks
+
+```{r}
+# trace
+log_length30m_mod |> mcmc_plot(type = "trace")
+# autocor
+log_length30m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+log_length30m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+log_length30m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+### residual checks
+
+```{r}
+# resids
+log_length30m_resids <- make_brms_dharma_res(log_length30m_mod)
+# qqplot
+log_length30m_resids |> testUniformity() # Better than gaussian
+# residual plot
+log_length30m_resids |> plotResiduals(quantreg = FALSE)
+```
+
+#### save model
+
+```{r}
+save(log_length30m_mod, file = "Model_Output/log_length30m_mod.Rdata")
+```
+
+# 50m
+
+## formula
+
+```{r}
+log_length50m_form <- 
+  bf(Size_cm ~ Depth_band +
+       (1 | Site), 
+     family = hurdle_lognormal())
+```
+
+## explore data
+
+```{r}
+brow_length_50m |> 
+  group_by(Depth_band) |> 
+  summarise(median = log(median(Size_cm)),
+            mad = log(mad(Size_cm)))
+```
+
+## define priors
+
+```{r}
+log_length50m_priors <- prior(normal(2.7, 1.2), class = "Intercept") +
+  prior(normal(0, 1), class = "b") +
+  prior(student_t(3, 0, 1.2), class = "sigma") +
+  prior(student_t(3, 0, 1.2), class = "sd") +
+  prior(beta(1, 1), class = "hu")
+```
+
+## prior mod
+
+```{r}
+#| cache: true
+log_length50m_prio_mod <- brm(log_length50m_form,
+                    data = brow_length_50m,
+                    prior = log_length50m_priors,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+log_length50m_mod <- update(log_length50m_prio_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   #control = list(adapt_delta = 0.99,
+                    #               max_treedepth = 20),
+                   refresh = 1000)
+```
+
+### chain checks
+
+```{r}
+# trace
+log_length50m_mod |> mcmc_plot(type = "trace")
+# autocor
+log_length50m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+log_length50m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+log_length50m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+### residual checks
+
+```{r}
+# resids
+log_length50m_resids <- make_brms_dharma_res(log_length50m_mod)
+# qqplot
+log_length50m_resids |> testUniformity() # Better than gaussian
+# residual plot
+log_length50m_resids |> plotResiduals(quantreg = FALSE)
+```
+
+#### save model
+
+```{r}
+save(log_length50m_mod, file = "Model_Output/log_length50m_mod.Rdata")
+```
+
+### end
+

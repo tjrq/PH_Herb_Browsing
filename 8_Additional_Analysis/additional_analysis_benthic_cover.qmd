@@ -1,0 +1,467 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+# Description
+The analysis below is a supplementary analysis to test whether partitioning the data into their max depth bands would affect the results. There was no evidence to suggest the case, so only the full analysis was used. 
+
+# libraries
+
+```{r}
+#| label: libraries
+#| output: false
+#| eval: true
+#| warning: false
+#| message: false
+#| cache: false
+
+library(tidyverse)
+#library(rstanarm)
+library(brms)
+library(coda)
+library(bayesplot)
+library(DHARMa)
+library(emmeans)
+library(broom)
+library(tidybayes)
+library(ggeffects)
+library(broom.mixed)
+library(bayestestR)
+library(see)
+library(easystats)
+library(patchwork)
+library(ggridges)
+source("helperFunctions.R")
+library(ggimage)
+library(vegan)
+library(BiodiversityR)
+library(ggrepel)
+set.seed(123)
+```
+
+# read data of major benthic categories
+
+```{r}
+mbc <- read_csv("Data/major_benthic_cover.csv", # data is in count
+               trim_ws = TRUE)
+```
+
+# subset relevant benthic categories and change their names for ease of plotting
+
+```{r}
+mbc_v2 <- 
+  mbc |> 
+  select(Site,
+         Depth,
+         Coral,
+         Macroalgae,
+         `Turf algae`,
+         `Sand, pavement, rubble`,
+         Total_points) |> 
+  rename(Turf_algae = `Turf algae`,
+         Abiotic = `Sand, pavement, rubble`,
+         Depth_band = Depth) |> 
+  mutate(Total_algae = Macroalgae + Turf_algae,
+         Site = factor(Site),
+         Depth_band = factor(Depth_band))
+```
+
+# ANALYSIS: data partitioned per depth band
+
+## prepare database
+
+### data with only 30m depth bands
+
+```{r}
+mbc_30m <- 
+mbc_v2 |> 
+  filter(Depth_band != "50m")
+```
+
+### data with sites that had 50m
+
+```{r}
+mbc_50m <-
+  mbc_v2 |> 
+  filter(Site == "Lucero" |
+           Site == "Arnedo")
+```
+
+# RUN MODELS
+
+## CORAL
+
+### 30m
+
+## define form
+
+```{r}
+coral_form_30m <- bf(Coral | trials(Total_points) ~ 
+                Depth_band +
+                (1 | Site),
+              family = binomial(link = "logit"))
+```
+
+## View data
+
+```{r}
+mbc_30m |> group_by(Depth_band,
+                    Site) |> 
+  summarise(median = median(qlogis(Coral / Total_points)),
+            mad = mad(qlogis(Coral / Total_points)),
+            N = mean(Total_points))
+```
+
+## Weakly informative priors
+
+```{r}
+coral_priors_30m <- prior(normal(-1.3, 3), class = "Intercept") + # tried mad = 3
+  prior(normal(0, 2), class = "b") +
+  prior(student_t(3, 0, 3), class = "sd")
+```
+
+## Prior only model
+
+```{r}
+#| cache: true
+coral30m_prior_mod <- brm(coral_form_30m,
+                    data = mbc_30m,
+                    prior = coral_priors_30m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    seed = 123,
+                    refresh = 1000)
+```
+
+## examine prior model
+
+```{r}
+coral30m_prior_mod |> 
+  conditional_effects(conditions = data.frame(Total_points = 25)) |> 
+  plot(points = TRUE)
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+coral30m_mod <- update(coral30m_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## chain diagnostics
+
+```{r}
+# trace
+coral30m_mod |> mcmc_plot(type = "trace")
+# autocor
+coral30m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+coral30m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+coral30m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+## model residuals
+
+```{r}
+coral30m_resids <- make_brms_dharma_res(coral30m_mod)
+# qqplot
+coral30m_resids |> testUniformity()
+# residual plot
+coral30m_resids |> plotResiduals(quantreg = FALSE)
+```
+
+### save model
+
+```{r}
+save(coral30m_mod, file = "Model_Output/coral30m_mod.Rdata")
+```
+
+## 50m
+
+## define form
+
+```{r}
+coral_form_50m <- bf(Coral | trials(Total_points) ~ 
+                Depth_band +
+                (1 | Site),
+              family = binomial(link = "logit"))
+```
+
+## View data
+
+```{r}
+mbc_50m |> group_by(Depth_band,
+                    Site) |> 
+  summarise(median = median(qlogis(Coral / Total_points)),
+            mad = mad(qlogis(Coral / Total_points)),
+            N = mean(Total_points))
+```
+
+## Weakly informative priors
+
+```{r}
+coral_priors_50m <- prior(normal(-1.3, 3), class = "Intercept") + # tried mad = 3
+  prior(normal(0, 2), class = "b") +
+  prior(student_t(3, 0, 3), class = "sd")
+```
+
+## Prior only model
+
+```{r}
+#| cache: true
+coral50m_prior_mod <- brm(coral_form_50m,
+                    data = mbc_50m,
+                    prior = coral_priors_50m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    seed = 123,
+                    refresh = 1000)
+```
+
+## examine prior model
+
+```{r}
+coral50m_prior_mod |> 
+  conditional_effects(conditions = data.frame(Total_points = 25)) |> 
+  plot(points = TRUE)
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+coral50m_mod <- update(coral50m_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## chain diagnostics
+
+```{r}
+# trace
+coral50m_mod |> mcmc_plot(type = "trace")
+# autocor
+coral50m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+coral50m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+coral50m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+## model residuals
+
+```{r}
+coral50m_resids <- make_brms_dharma_res(coral50m_mod)
+# qqplot
+coral50m_resids|> testUniformity()
+# residual plot
+coral50m_resids |> plotResiduals()
+```
+
+### save model
+
+```{r}
+save(coral50m_mod, file = "Model_Output/coral50m_mod.Rdata")
+```
+
+## MACROALGAE
+
+### 30m
+
+## MACROALGAE
+
+```{r}
+macroalgae_form_30m <- bf(Macroalgae | trials(Total_points) ~ 
+                Depth_band +
+                (1 | Site),
+              family = binomial(link = "logit"))
+```
+
+## View data
+
+```{r}
+mbc_30m |> group_by(Depth_band, 
+                   Site) |> 
+  summarise(median = median(qlogis(Macroalgae / Total_points)),
+            mad = mad(qlogis(Macroalgae / Total_points)),
+            N = mean(Total_points))
+```
+
+## Weakly informative priors
+
+```{r}
+ma30m_priors <- prior(normal(-1.8, 1.5), class = "Intercept") + # tried mad = 3
+  prior(normal(0, 2.4), class = "b") +
+  prior(student_t(3, 0, 1.5), class = "sd")
+```
+
+## Prior only model
+
+```{r}
+#| cache: true
+ma30m_prior_mod <- brm(macroalgae_form_30m,
+                    data = mbc_30m,
+                    prior = ma30m_priors,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    seed = 123,
+                    refresh = 1000)
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+ma30m_mod <- update(ma30m_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## chain diagnostics
+
+```{r}
+# trace
+ma30m_mod |> mcmc_plot(type = "trace")
+# autocor
+ma30m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+ma30m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+ma30m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+## model residuals
+
+```{r}
+ma30m_resids <- make_brms_dharma_res(ma30m_mod)
+# qqplot
+ma30m_resids |> testUniformity()
+# residual plot
+ma30m_resids |> plotResiduals()
+```
+
+### save model
+
+```{r}
+save(ma30m_mod, file = "Model_Output/ma30m_mod.Rdata")
+```
+
+## 50m
+
+## MACROALGAE
+
+```{r}
+macroalgae_form_50m <- bf(Macroalgae | trials(Total_points) ~ 
+                Depth_band +
+                (1 | Site),
+              family = binomial(link = "logit"))
+```
+
+## View data
+
+```{r}
+mbc_50m |> group_by(Depth_band, 
+                   Site) |> 
+  summarise(median = median(qlogis(Macroalgae / Total_points)),
+            mad = mad(qlogis(Macroalgae / Total_points)),
+            N = mean(Total_points))
+```
+
+## Weakly informative priors
+
+```{r}
+ma50m_priors <- prior(normal(-1.8, 1.5), class = "Intercept") + # tried mad = 3
+  prior(normal(0, 2.4), class = "b") +
+  prior(student_t(3, 0, 1.5), class = "sd")
+```
+
+## Prior only model
+
+```{r}
+#| cache: true
+ma50m_prior_mod <- brm(macroalgae_form_50m,
+                    data = mbc_50m,
+                    prior = ma50m_priors,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    seed = 123,
+                    refresh = 1000)
+```
+
+## fit data to model
+
+```{r}
+#| cache: true
+ma50m_mod <- update(ma50m_prior_mod,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+## chain diagnostics
+
+```{r}
+# trace
+ma50m_mod |> mcmc_plot(type = "trace")
+# autocor
+ma50m_mod |> mcmc_plot(type = "acf_bar")
+# rhat
+ma50m_mod |> mcmc_plot(type = "rhat_hist")
+# ess
+ma50m_mod |> mcmc_plot(type = "neff_hist")
+```
+
+## model residuals
+
+```{r}
+ma50m_resids <- make_brms_dharma_res(ma50m_mod)
+# qqplot
+ma50m_resids |> testUniformity()
+# residual plot
+ma50m_resids |> plotResiduals()
+```
+
+### save model
+
+```{r}
+save(ma50m_mod, file = "Model_Output/ma50m_mod.Rdata")
+```
+
+### end
+
