@@ -1,4 +1,4 @@
-Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,Weight_removed_g,Initial_height_cm,Final_height_cm,Height_removed_cm,Tag_ID,Comment
+﻿Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,Weight_removed_g,Initial_height_cm,Final_height_cm,Height_removed_cm,Tag_ID,Comment
 2023,Arnedo,10,Open,3,51,41,11,30,25,5,AVO1,Video_obs
 2023,Arnedo,10,Open,3,54,52,2,31,30,1,AVO2,Video_obs
 2023,Arnedo,10,Open,3,70,63,7,37,35,3,AVO3,Video_obs
@@ -13,7 +13,7 @@ Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,We
 2023,Arnedo,20,Caged,3,46,39,7,21,19,7,AVC6,Video_obs
 2023,Arnedo,30,Open,3,31,26,5,20,17,3,AVO2,Video_obs
 2023,Arnedo,30,Open,3,23,21,2,16,15,1,AVO4,Video_obs
-2023,Arnedo,30,Open,3,12,10,1,10,9,1,AVO1,Video_obs
+2023,Arnedo,30,Open,3,12,10,2,10,9,1,AVO1,Video_obs
 2023,Arnedo,30,Caged,3,19,16,3,11,10,1,AVC5,Video_obs
 2023,Arnedo,30,Caged,3,23,22,1,15,10,5,AVC2,Video_obs
 2023,Arnedo,30,Caged,3,21,18,3,17,15,2,AVC3,Video_obs
@@ -56,7 +56,7 @@ Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,We
 2023,Lucero,20,Caged,3,42,40,2,21,18,3,LVC3,Video_obs
 2023,Lucero,20,Caged,3,26,17,9,23,21,2,LVC2,Video_obs
 2023,Lucero,30,Open,3,15,6,9,11,6,6,LVO5,Video_obs
-2023,Lucero,30,Open,3,13,12,2,10,9,1,LVO2,Video_obs
+2023,Lucero,30,Open,3,13,12,1,10,9,1,LVO2,Video_obs
 2023,Lucero,30,Open,3,25,21,4,17,15,2,LVO1,Video_obs
 2023,Lucero,30,Caged,3,17,16,1,18,17,1,LVC2,Video_obs
 2023,Lucero,30,Caged,3,31,29,2,44,44,0,LVC1,Video_obs
@@ -80,10 +80,9 @@ Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,We
 2023,Silaki,30,Open,3,17,15,2,12,11,1,SVO2,Video_obs
 2023,Silaki,30,Open,3,33,32,1,21,20,1,SVO3,Video_obs
 2023,Silaki,30,Open,3,30,22,8,20,16,4,SVO1,Video_obs
-2023,Silaki,30,Caged,3,24,23,9,35,33,2,SVC1,Video_obs
-2023,Silaki,30,Caged,3,27,26,6,34,33,1,SVC4,Video_obs
-2023,Silaki,30,Caged,3,28,22,0,29,29,6,SVC5,Video_obs
-2023,Arnedo,20,Caged,96,8,8,0,16,14,2,AAC27,Unfilmed
+2023,Silaki,30,Caged,3,24,23,1,35,33,2,SVC1,Video_obs
+2023,Silaki,30,Caged,3,27,26,1,34,33,1,SVC4,Video_obs
+2023,Silaki,30,Caged,3,28,22,6,29,29,6,SVC5,Video_obs
 2023,Arnedo,10,Caged,96,7,7,0,12,12,0,AC1,Unfilmed
 2023,Arnedo,30,Caged,96,33,14,19,24,22,2,AC11,Unfilmed
 2023,Arnedo,10,Caged,96,7,6,1,12,8,4,AC12,Unfilmed
@@ -105,11 +104,9 @@ Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,We
 2023,Arnedo,20,Caged,96,69,41,28,28,28,0,AC8,Unfilmed
 2023,Arnedo,20,Caged,96,6,3,3,10,5,5,AC9,Unfilmed
 2023,Arnedo,10,Caged,96,55,54,1,34,31,3,ACC30,Unfilmed
-2023,Arnedo,20,Open,96,59,20,39,22,16,6,AO1,Unfilmed
 2023,Arnedo,30,Open,96,8,8,0,11,6,5,AO1,Unfilmed
 2023,Arnedo,10,Open,96,33,12,21,23,21,2,AO10,Unfilmed
 2023,Arnedo,10,Open,96,20,3,17,12,9,3,AO10,Unfilmed
-2023,Arnedo,20,Open,96,7,5,2,12,10,2,AO12,Unfilmed
 2023,Arnedo,30,Open,96,33,3,30,22,7,15,AO12,Unfilmed
 2023,Arnedo,30,Open,96,105,26,79,30,17,13,AO13,Unfilmed
 2023,Arnedo,20,Open,96,11,4,7,12,9,3,AO13,Unfilmed
@@ -133,7 +130,7 @@ Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,We
 2023,Balingasay,20,Caged,96,44,41,3,15,13,2,B7,Unfilmed
 2023,Balingasay,20,Caged,96,11,10,1,15,14,1,BB29,Unfilmed
 2023,Balingasay,10,Open,96,25,7,18,14,3,11,BBO24,Unfilmed
-2023,Balingasay,30,Caged,96,35,33,2,22,21,1,BC1,Unfilmed
+2023,Silaki,30,Caged,96,35,33,2,22,21,1,SC1,Unfilmed
 2023,Balingasay,20,Caged,96,60,46,14,23,22,1,BC1,Unfilmed
 2023,Balingasay,20,Caged,96,17,17,0,17,12,5,BC10,Unfilmed
 2023,Balingasay,20,Caged,96,80,75,5,38,37,1,BC11,Unfilmed
@@ -159,7 +156,7 @@ Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,We
 2023,Balingasay,30,Caged,96,21,20,1,17,14,3,BC9,Unfilmed
 2023,Balingasay,20,Open,96,13,10,3,12,10,2,BO1,Unfilmed
 2023,Balingasay,10,Open,96,61,3,58,24,9,15,BO1,Unfilmed
-2023,Balingasay,30,Open,96,27,25,2,14,12,2,BO11,Unfilmed
+2023,Silaki,30,Open,96,27,25,2,14,12,2,SO11,Unfilmed
 2023,Balingasay,30,Open,96,71,0,71,24,0,24,BO12,Unfilmed
 2023,Balingasay,10,Open,96,70,22,48,27,14,13,BO13,Unfilmed
 2023,Balingasay,20,Open,96,33,21,12,22,12,10,BO14,Unfilmed
@@ -285,7 +282,7 @@ Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,We
 2023,Lucero,50,Open,96,118,6,112,36,12,24,LO27,Unfilmed
 2023,Lucero,50,Caged,96,5,5,0,7,6,1,LC14,Unfilmed
 2023,Lucero,50,Caged,96,33,21,12,23,15,8,LC22,Unfilmed
-2023,Lucero,50,Caged,96,94,56,38,35,34,1,LC24,Unfilmed
+2023,Lucero,50,Open,96,94,56,38,35,34,1,LO24,Unfilmed
 2023,Lucero,50,Caged,96,48,24,24,32,31,1,LC1,Unfilmed
 2023,Lucero,50,Open,96,23,3,20,20,5,15,LO11,Unfilmed
 2023,Balingasay,30,Open,96,61,29,32,36,19,17,B7,Unfilmed
@@ -302,3 +299,6 @@ Year,Site,Depth_band,Treatment,Hours_deployed,Initial_weight_g,Final_weight_g,We
 2023,Silaki,20,Open,96,20,3,17,21,8,13,SO16,Unfilmed
 2023,Silaki,20,Open,96,36,5,31,34,10,24,SI10,Unfilmed
 2023,Silaki,20,Caged,96,43,14,29,17,17,0,SC7,Unfilmed
+2023,Silaki,20,Caged,96,8,8,0,16,14,2,SC27,Unfilmed
+2023,Silaki,20,Open,96,59,20,39,22,16,6,SO1,Unfilmed
+2023,Silaki,20,Open,96,7,5,2,12,10,2,SO12,Unfilmed

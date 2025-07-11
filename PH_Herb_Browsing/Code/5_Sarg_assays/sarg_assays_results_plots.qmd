@@ -1,0 +1,329 @@
+---
+title: "sarg_assays_results_plots"
+format: html
+editor: visual
+---
+
+# Description
+
+This qmd files examines the models from the "fit" qmd and visualizes the results.
+
+# 4 DAY EXPERIMENT (96 h)
+
+## load models
+
+```{r}
+load("Model_Outputs/logm_sarg96_mod.Rdata")
+load("Model_Outputs/logm_sarg96h50m_stand_mod.Rdata")
+```
+
+## FULL DATASET
+
+## summary table
+
+```{r}
+logm_sarg96_mod |> as_draws_df() |> 
+  dplyr::select(matches("^b_.*")) |> 
+  exp() |> 
+  summarise_draws(median,
+                  HDInterval::hdi,
+                  Pl= ~mean(.x < 1),
+                  Pg = ~mean(.x > 1)) #|> 
+  #filter(Pl > 0.85 | 
+   #        Pg > 0.85)
+```
+
+## newdata for plotting macroalgae loss with depth band
+
+```{r}
+sarg_assay_96_nd <-
+  logm_sarg96_mod |> 
+  emmeans(~ Depth_band *
+            Treatment, 
+          type = "link") |> 
+  gather_emmeans_draws() |> 
+  mutate(Exp_grams = exp(.value)) |> 
+  dplyr::select(-.chain,
+                -.iteration,
+                -.value) |> 
+  summarise_draws(median, 
+                  HDInterval::hdi) |> 
+  as.data.frame()
+```
+
+## change depth band names
+
+```{r}
+sarg_assay_96_nd2 <-
+sarg_assay_96_nd |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10m" = "0-10m",
+                             "20m" = "11-20m",
+                             "30m" = "31-40m",
+                             "50m" = "41-50m"))
+```
+
+## plot 96h macroalgae loss with depth bands
+
+```{r}
+p_sarg_assay_96 <- 
+sarg_assay_96_nd2 |> 
+  ggplot(aes(x = Depth_band,
+             y = median,
+             fill = Treatment)) +
+  geom_pointrange(aes(ymin = lower, 
+                      ymax = upper,
+                      shape = Treatment),
+                  position = position_dodge(0.25),
+                  size = 1.5,
+                  fatten = 3) +
+  scale_y_continuous(expression(italic(Sargassum)~loss~(grams~4~d^-1)),
+                     limits = c(0,50),
+                     breaks = seq(0, 50, by = 10)) +
+  scale_x_discrete(name = "Depth bands") +
+  theme_classic() +
+  #ggtitle("Deployment duration: 96h") +
+  scale_fill_manual(values = c("red2", "blue")) +
+  scale_shape_manual(values = c(22, 21)) +
+  theme(axis.title = element_text(size = 15),
+        axis.text = element_text(size = 12),
+        plot.title = element_text(size = 18)) +
+  geom_image(data = tibble(Depth_band = 4.3,
+                           median = 45,
+                           Treatment = "Caged"),
+             aes(image = "Images/sargassum-spp.png"),
+             size = 0.16)
+```
+
+## pairwise among depth bands
+
+```{r}
+logm_sarg96_mod |> 
+emmeans(~ Depth_band,
+        type = "link") |> 
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1)) |> 
+  filter(Pl > 0.85 | Pg > 0.85)
+```
+
+### ggsave macroalgal assay
+
+```{r}
+ggsave("Plots/Fig. X. sarg_assays_96h.jpeg",
+       plot = p_sarg_assay_96, 
+       dpi = 600, 
+       height = 4, 
+       width = 6, 
+       units = "in")
+```
+
+## STANDARDIZED
+
+## summary table
+
+```{r}
+logm_sarg96h50m_stand_mod |> as_draws_df() |> 
+  dplyr::select(matches("^b_.*")) |> 
+  exp() |> 
+  summarise_draws(median,
+                  HDInterval::hdi,
+                  Pl= ~mean(.x < 1),
+                  Pg = ~mean(.x > 1)) #|> 
+  #filter(Pl > 0.85 | 
+   #        Pg > 0.85)
+```
+
+## newdata for plotting macroalgae loss with depth band
+
+```{r}
+sarg_assay_96h50m_stand_nd <-
+  logm_sarg96h50m_stand_mod |> 
+  emmeans(~ Depth_band *
+            Treatment, 
+          type = "link") |> 
+  gather_emmeans_draws() |> 
+  mutate(Exp_grams = exp(.value)) |> 
+  dplyr::select(-.chain,
+                -.iteration,
+                -.value) |> 
+  summarise_draws(median, 
+                  HDInterval::hdi) |> 
+  as.data.frame()
+```
+
+## change depth band names
+
+```{r}
+sarg_assay_96h50m_stand_nd2 <-
+sarg_assay_96h50m_stand_nd |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10m" = "0-10m",
+                             "20m" = "11-20m",
+                             "30m" = "31-40m",
+                             "50m" = "41-50m"))
+```
+
+## plot 96h macroalgae loss with depth bands
+
+```{r}
+p_sarg_assay_96h50m_stand <- 
+sarg_assay_96h50m_stand_nd2 |> 
+  ggplot(aes(x = Depth_band,
+             y = median,
+             fill = Treatment)) +
+  geom_pointrange(aes(ymin = lower, 
+                      ymax = upper,
+                      shape = Treatment),
+                  position = position_dodge(0.25),
+                  size = 1.5,
+                  fatten = 3) +
+  scale_y_continuous(expression(italic(Sargassum)~loss~(grams~4~d^-1)),
+                     limits = c(0,80),
+                     breaks = seq(0, 80, by = 10)) +
+  scale_x_discrete(name = "Depth bands") +
+  theme_classic() +
+  #ggtitle("Deployment duration: 96h") +
+  scale_fill_manual(values = c("red2", "blue")) +
+  scale_shape_manual(values = c(22, 21)) +
+  theme(axis.title = element_text(size = 15),
+        axis.text = element_text(size = 12),
+        plot.title = element_text(size = 18)) #+
+ # geom_image(data = tibble(Depth_band = 4.3,
+  #                         median = 45,
+   #                        Treatment = "Caged"),
+    #         aes(image = "Images/sargassum-spp.png"),
+     #        size = 0.16)
+```
+
+## pairwise among depth bands
+
+```{r}
+logm_sarg96_mod |> 
+emmeans(~ Depth_band,
+        type = "link") |> 
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1)) |> 
+  filter(Pl > 0.85 | Pg > 0.85)
+```
+
+# 3H EXPERIMENTS
+
+## load model
+
+```{r}
+load("Model_Outputs/logm_sarg3h_mod.Rdata")
+```
+
+## summary to check site variation
+
+```{r}
+summary(logm_sarg3h_mod)
+
+# response scale of site variation
+exp(0.23)
+```
+
+## summary table
+
+```{r}
+logm_sarg3h_mod |> as_draws_df() |> 
+  dplyr::select(matches("^b_.*")) |> 
+  exp() |> 
+  summarise_draws(median,
+                  HDInterval::hdi,
+                  Pl= ~mean(.x < 1),
+                  Pg = ~mean(.x > 1)) #|> 
+  #filter(Pl > 0.85 | 
+   #        Pg > 0.85)
+```
+
+## newdata for plotting macroalgal loss with depth bands
+
+```{r}
+sarg_assay_3h_nd <-
+  logm_sarg3h_mod |> 
+  emmeans(~ Depth_band *
+            Treatment, 
+          type = "link") |> 
+  gather_emmeans_draws() |> 
+  mutate(Exp_grams = exp(.value)) |> 
+  dplyr::select(-.chain,
+                -.iteration,
+                -.value) |> 
+  summarise_draws(median, 
+                  HDInterval::hdi) |> 
+  as.data.frame() |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10m" = "0-10m",
+                             "20m" = "11-20m",
+                             "30m" = "30-40m",
+                             "50m" = "41-50m"))
+```
+
+# check values for open treatments
+
+```{r}
+sarg_assay_3h_nd |> filter(Treatment == "Open")
+```
+
+## plot
+
+```{r}
+p_sarg_assay_3h <- 
+sarg_assay_3h_nd |> 
+  ggplot(aes(x = Depth_band,
+             y = median,
+             fill = Treatment)) +
+  geom_pointrange(aes(ymin = lower, 
+                      ymax = upper,
+                      shape = Treatment),
+                  position = position_dodge(0.30),
+                  size = 1.5,
+                  fatten = 3) +
+  scale_y_continuous(expression(italic(Sargassum)~loss~(grams~3~h^-1)),
+                     limits = c(0,15),
+                     breaks = seq(0, 15, by = 5)) +
+  scale_x_discrete(name = "Depth band") +
+  theme_classic() +
+  ggtitle("Macroalgal video assays") +
+  scale_fill_manual(values = c("red2", "blue")) +
+   scale_shape_manual(values = c(22, 21)) +
+  theme(axis.title.y = element_text(size = 15),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        plot.title = element_text(size = 18),
+        legend.title = element_text(size = 18),
+        legend.text = element_text(size = 15)) +
+  geom_image(data = tibble(Depth_band = 0.90,
+                           median = 12,
+                           Treatment = "Caged"),
+             aes(image = "Images/sargassum-spp.png"),
+             size = 0.30)
+```
+
+## pairwise among depth bands
+
+```{r}
+logm_sarg3h_mod |> 
+emmeans(~ Depth_band,
+        type = "link") |> 
+  pairs() |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1)) |> 
+  filter(Pl > 0.85 | Pg > 0.85)
+```
+
+### end
