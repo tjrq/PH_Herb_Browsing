@@ -1,0 +1,507 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+# libraries
+
+```{r}
+#| label: libraries
+#| output: false
+#| eval: true
+#| warning: false
+#| message: false
+#| cache: false
+
+library(tidyverse)
+#library(rstanarm)
+library(brms)
+library(coda)
+library(bayesplot)
+library(DHARMa)
+library(emmeans)
+library(broom)
+library(tidybayes)
+library(ggeffects)
+library(broom.mixed)
+library(bayestestR)
+library(see)
+library(easystats)
+library(patchwork)
+library(ggridges)
+source("helperFunctions.R")
+library(ggimage)
+library(vegan)
+library(BiodiversityR)
+library(ggrepel)
+set.seed(123)
+```
+
+# read csv
+
+```{r}
+bites <- read_csv("Data/bites.csv",
+               trim_ws = TRUE)
+```
+
+# data prep
+
+```{r}
+bites_brow <- 
+  bites |> 
+  filter(Functional_group == "Browser") |> 
+  select(Site,
+         Depth_band,
+         Species,
+         Replicate,
+         Time,
+         Bites) |> 
+  mutate(Site = factor(Site),
+         Depth_band = factor(Depth_band),
+         Species = factor(Species)) |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10" = "10m",
+                             "20" = "20m",
+                             "30" = "30m",
+                             "50" = "50m"))
+```
+
+# widen data and isolate 2 species that contributed to 98% of the total bites
+
+```{r}
+bites_naso <- 
+bites_brow |> 
+  group_by(Site,
+           Depth_band,
+           Time,
+           Species,
+           Replicate) |> 
+  summarise(Sum_bites = sum(Bites)) |> 
+  ungroup() |> 
+  pivot_wider(names_from = Species,
+              values_from = Sum_bites,
+              values_fill = 0) |> 
+  select(Site,
+           Depth_band,
+          # Species,
+           Replicate,
+          `Naso lituratus`, # took the two species that contributed to 98% of total bites
+          `Naso unicornis`) |> 
+  rename(Nl = `Naso lituratus`,
+         Nu = `Naso unicornis`)
+```
+
+# Analysis: per depth band
+
+## prepare database
+
+```{r}
+# 30m
+bites_naso_30m <-
+  bites_naso |> 
+  filter(Depth_band != "50m")
+
+# 50m
+bites_naso_50m <-
+  bites_naso |> 
+  filter(Site == "Arnedo" | Site == "Lucero")
+```
+
+## NASO UNICORNIS
+
+### 50m
+
+### formula
+
+```{r}
+nu_bites_form_hurd_50m <- bf(Nu ~ 
+                      Depth_band +
+                      (1 | Site),
+                    family = hurdle_negbinomial(link = "log"))
+```
+
+### explore data
+
+```{r}
+bites_naso_50m |> 
+ group_by(Depth_band) |>
+  summarise(mean = mean(Nu))
+  summarise(med = log(median(Nu)),
+            mad = log(mad(Nu)),
+            mean = log(mean(Nu)),
+            sd = log(sd(Nu))) 
+```
+
+### weakly informative priors
+
+```{r}
+nu_bites_prior_hurd_50m <- prior(normal(0.4, 1.6), class = "Intercept") +
+  prior(normal(0, 2), class = "b") +
+  prior(student_t(3, 0, 1.6), class = "sd") +
+  prior(gamma(0.01, 0.01), class = "shape") +
+  prior(beta(1, 1), class = "hu")
+```
+
+### prior model
+
+```{r}
+#| cache: true
+nu_prior_mod_hurd_50m <- brm(nu_bites_form_hurd_50m,
+                    data = bites_naso_50m,
+                    prior = nu_bites_prior_hurd_50m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+### evaluate prior model
+
+```{r}
+nu_prior_mod_hurd_50m |> conditional_effects() |> 
+  plot(points = TRUE,
+       ask = FALSE,
+       plot = FALSE) |> 
+  wrap_plots()  #&
+  #scale_y_log10()
+```
+
+### fit data to model
+
+```{r}
+#| cache: true
+nu_mod_hurdle_50m <- update(nu_prior_mod_hurd_50m,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+#### chain checks
+
+```{r}
+# trace
+nu_mod_hurdle_50m |> mcmc_plot(type = "trace")
+# autocor
+nu_mod_hurdle_50m|> mcmc_plot(type = "acf_bar")
+# rhat
+nu_mod_hurdle_50m |> mcmc_plot(type = "rhat_hist")
+# ess
+nu_mod_hurdle_50m |> mcmc_plot(type = "neff_hist")
+```
+
+#### residuals
+
+```{r}
+nu_resids_hurd_50m <- make_brms_dharma_res(nu_mod_hurdle_50m)
+# qqplot
+nu_resids_hurd_50m |> testUniformity() 
+# residual plot
+nu_resids_hurd_50m |> plotResiduals()
+```
+
+##### save model
+
+```{r}
+save(nu_mod_hurdle_50m, file = "Model_Output/nu_mod_hurdle_50m.Rdata")
+```
+
+###### Notes
+
+No bite observations for N. unicornis at 0-10 and 11-20m depth bands for Arnedo and Lucero sites
+
+### 30m
+
+### formula
+
+```{r}
+nu_bites_form_hurd_30m <- bf(Nu ~ 
+                      Depth_band +
+                      (1 | Site),
+                    family = hurdle_negbinomial(link = "log"))
+```
+
+### explore data
+
+```{r}
+bites_naso_30m |> 
+ group_by(Depth_band) |>
+  #summarise(mean = mean(Nu))
+  summarise(med = log(median(Nu)),
+            mad = log(mad(Nu)),
+            mean = log(mean(Nu)),
+            sd = log(sd(Nu))) 
+```
+
+### weakly informative priors
+
+```{r}
+nu_bites_prior_hurd_30m <- prior(normal(1.2, 1.4), class = "Intercept") +
+  prior(normal(0, 0.8), class = "b") +
+  prior(student_t(3, 0, 1.4), class = "sd") +
+  prior(gamma(0.01, 0.01), class = "shape") +
+  prior(beta(1, 1), class = "hu")
+```
+
+### prior model
+
+```{r}
+#| cache: true
+nu_prior_mod_hurd_30m <- brm(nu_bites_form_hurd_30m,
+                    data = bites_naso_30m,
+                    prior = nu_bites_prior_hurd_30m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+### evaluate prior model
+
+```{r}
+nu_prior_mod_hurd_30m |> conditional_effects() |> 
+  plot(points = TRUE,
+       ask = FALSE,
+       plot = FALSE) |> 
+  wrap_plots()  #&
+  #scale_y_log10()
+```
+
+### fit data to model
+
+```{r}
+#| cache: true
+nu_mod_hurdle_30m <- update(nu_prior_mod_hurd_30m,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+#### chain checks
+
+```{r}
+# trace
+nu_mod_hurdle_30m |> mcmc_plot(type = "trace")
+# autocor
+nu_mod_hurdle_30m|> mcmc_plot(type = "acf_bar")
+# rhat
+nu_mod_hurdle_30m |> mcmc_plot(type = "rhat_hist")
+# ess
+nu_mod_hurdle_30m |> mcmc_plot(type = "neff_hist")
+```
+
+#### residuals
+
+```{r}
+nu_resids_hurd_30m <- make_brms_dharma_res(nu_mod_hurdle_30m)
+# qqplot
+nu_resids_hurd_30m |> testUniformity() 
+# residual plot
+nu_resids_hurd_30m |> plotResiduals()
+```
+
+##### save model
+
+```{r}
+save(nu_mod_hurdle_30m, file = "Model_Output/nu_mod_hurdle_30m.Rdata")
+```
+
+### NASO LITURATUS
+
+## 50m
+
+### formula
+
+```{r}
+nl_bites_form_hurd_50m <- bf(Nl ~ 
+                      Depth_band +
+                      (1 | Site),
+                    family = hurdle_negbinomial(link = "log"))
+```
+
+### explore data
+
+```{r}
+bites_naso_50m |> 
+ group_by(Depth_band) |> 
+  summarise(med = log(median(Nl)),
+            mad = log(mad(Nl)),
+            mean = log(mean(Nl)),
+            sd = log(sd(Nl))) 
+```
+
+### weakly informative prior
+
+```{r}
+nl_bites_prior_hurd_50m <- prior(normal(2, 3.2), class = "Intercept") +
+  prior(normal(0, 1.6), class = "b") +
+  prior(student_t(3, 0, 3.2), class = "sd") +
+  prior(gamma(0.01, 0.01), class = "shape") +
+  prior(beta(1, 1), class = "hu")
+```
+
+### prior model
+
+```{r}
+#| cache: true
+nl_prior_mod_hurd_50m <- brm(nl_bites_form_hurd_50m,
+                    data = bites_naso_50m,
+                    prior = nl_bites_prior_hurd_50m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+### fit data to model
+
+```{r}
+#| cache: true
+nl_mod_hurdle_50m <- update(nl_prior_mod_hurd_50m,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+#### chain checks
+
+```{r}
+# trace
+nl_mod_hurdle_50m |> mcmc_plot(type = "trace")
+# autocor
+nl_mod_hurdle_50m|> mcmc_plot(type = "acf_bar")
+# rhat
+nl_mod_hurdle_50m|> mcmc_plot(type = "rhat_hist")
+# ess
+nl_mod_hurdle_50m |> mcmc_plot(type = "neff_hist")
+```
+
+#### residuals
+
+```{r}
+nl_resids_hurd_50m <- make_brms_dharma_res(nl_mod_hurdle_50m)
+# qqplot
+nl_resids_hurd_50m |> testUniformity() 
+# residual plot
+nl_resids_hurd_50m |> plotResiduals()
+```
+
+#### save model
+
+```{r}
+save(nl_mod_hurdle_50m, file = "Model_Output/nl_mod_hurdle_50m.Rdata")
+```
+
+## 30m
+
+### formula
+
+```{r}
+nl_bites_form_hurd_30m <- bf(Nl ~ 
+                      Depth_band +
+                      (1 | Site),
+                    family = hurdle_negbinomial(link = "log"))
+```
+
+### explore data
+
+```{r}
+bites_naso_30m |> 
+ group_by(Depth_band) |> 
+  summarise(med = log(median(Nl)),
+            mad = log(mad(Nl)),
+            mean = log(mean(Nl)),
+            sd = log(sd(Nl))) 
+```
+
+### weakly informative prior
+
+```{r}
+nl_bites_prior_hurd_30m <- prior(normal(2.2, 2.9), class = "Intercept") +
+  prior(normal(0, 0.5), class = "b") +
+  prior(student_t(3, 0, 2.9), class = "sd") +
+  prior(gamma(0.01, 0.01), class = "shape") +
+  prior(beta(1, 1), class = "hu")
+```
+
+### prior model
+
+```{r}
+#| cache: true
+nl_prior_mod_hurd_30m <- brm(nl_bites_form_hurd_30m,
+                    data = bites_naso_30m,
+                    prior = nl_bites_prior_hurd_30m,
+                    sample_prior = "only",
+                    iter = 5000,
+                    warmup = 1000,
+                    chains = 3,
+                    cores = 6,
+                    thin = 5,
+                    refresh = 1000,
+                    seed = 123,
+                    control = list(adapt_delta = 0.99,
+                                   max_treedepth = 20))
+```
+
+### fit data to model
+
+```{r}
+#| cache: true
+nl_mod_hurdle_30m <- update(nl_prior_mod_hurd_30m,
+                   sample_prior = "yes",
+                   iter = 10000,
+                   warmup = 2000,
+                   refresh = 1000)
+```
+
+#### chain checks
+
+```{r}
+# trace
+nl_mod_hurdle_30m |> mcmc_plot(type = "trace")
+# autocor
+nl_mod_hurdle_30m|> mcmc_plot(type = "acf_bar")
+# rhat
+nl_mod_hurdle_30m|> mcmc_plot(type = "rhat_hist")
+# ess
+nl_mod_hurdle_30m |> mcmc_plot(type = "neff_hist")
+```
+
+#### residuals
+
+```{r}
+nl_resids_hurd_30m <- make_brms_dharma_res(nl_mod_hurdle_30m)
+# qqplot
+nl_resids_hurd_30m |> testUniformity() 
+# residual plot
+nl_resids_hurd_30m |> plotResiduals()
+```
+
+#### save model
+
+```{r}
+save(nl_mod_hurdle_30m, file = "Model_Output/nl_mod_hurdle_30m.Rdata")
+```
+
+##### end
