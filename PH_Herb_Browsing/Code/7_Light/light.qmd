@@ -1,0 +1,55 @@
+---
+title: "light"
+format: html
+editor: visual
+---
+
+# Description
+
+eda to show differences in light levels (collected using LICOR) with depth bands.
+
+# read data
+
+```{r}
+light <- read_csv("Data/light.csv",
+               trim_ws = TRUE)
+```
+
+# plot
+
+```{r}
+p_light <-
+light |> 
+  filter(Depth != "40m") |> 
+  mutate(Depth = recode(Depth,
+                             "10m" = "0-10m",
+                             "20m" = "11-20m",
+                             "30m" = "31-40m",
+                             "50m" = "41-50m")) |> 
+  ggplot(aes(x = Depth, 
+             y = PPFFR, 
+             fill = Depth)) +
+  geom_boxplot() +
+  theme_classic() +
+  theme(legend.position = "none") +
+  scale_x_discrete(name = "Depth bands") +
+  scale_y_continuous(name = "Quantum scalar irradiance",
+                     limits = c(0,1000),
+                   breaks = seq(0, 1000, by = 250))
+```
+
+```{r}
+ggplot_build(p_light)$data[[1]]
+```
+
+
+# ggsave
+
+```{r}
+ggsave("Plot/Fig. X2. light.jpeg",
+       plot = p_light, 
+       dpi = 600, 
+       height = 3,
+       width = 4,
+       units = "in")
+```
