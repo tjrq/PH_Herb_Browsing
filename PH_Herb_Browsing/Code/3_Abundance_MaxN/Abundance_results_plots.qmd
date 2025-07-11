@@ -1,0 +1,152 @@
+---
+title: "Abundance_results_plots"
+format: html
+editor: visual
+---
+
+# Description
+
+This qmd examines the abundance model fitted in the "fits" qmd file, and then visualizing the results.Also, runs code for generating a heatmap for each browser species across depth bands.
+
+# MAXN ABUNDANCE
+
+## load model
+
+```{r}
+load("Model_Outputs/abun_mod.Rdata")
+```
+
+## summary table
+
+```{r}
+abun_mod |> as_draws_df() |> 
+  dplyr::select(matches("^b_.*")) |> 
+  exp() |> 
+  summarise_draws(median,
+                  HDInterval::hdi,
+                  Pl= ~mean(.x < 1),
+                  Pg = ~mean(.x > 1)) |> 
+  filter(Pl > 0.85 | 
+           Pg > 0.85)
+```
+
+## depth bands newdata for plotting
+
+```{r}
+abun_nd <- 
+  abun_mod |> 
+  emmeans(~ Depth_band, 
+          type = "link") |> 
+  gather_emmeans_draws() |> 
+  mutate(Exp_abun = exp(.value)) |> 
+  dplyr::select(-.chain,
+                -.iteration,
+                -.value) |> 
+  summarise_draws(median, 
+                  HDInterval::hdi) |> 
+  as.data.frame()
+```
+
+## plot depth band
+
+```{r}
+p_brow_abun <- 
+abun_nd |> 
+  ggplot(aes(x = Depth_band,
+             y = median)) +
+  geom_pointrange(aes(ymin = lower,
+                      ymax = upper),
+                  shape = 21,
+                  size = 1.5,
+                  fatten = 3,
+                  color = "black",
+                  fill = "red2") +
+  scale_y_continuous(name = "Abundance (MaxN)",
+                     limits = c(0, 2),
+                     breaks = seq(0, 2, by = 1)) +
+  scale_x_discrete(name = "") +
+  theme_classic() +
+    #ggtitle("Total herbivores") +
+     theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y = element_text(size = 15),
+        axis.text.y = element_text(size = 12),
+        plot.title = element_text(size = 18)) +
+  geom_image(data = tibble(Depth_band = 4,
+                           median = 1.8),
+             aes(image = "Images/naso-unicornis-bluespine-unicornfish.png"),
+             size = 0.30) +
+  geom_image(data = tibble(Depth_band = 4,
+                           median = 1.4),
+             aes(image = "Images/siganus-spp-rabbitfish.png"),
+             size = 0.30)
+```
+
+## pairwise
+
+```{r}
+abun_mod |> 
+emmeans(~ Depth_band,
+        type = "link") |>
+  pairs(reverse = TRUE) |> 
+  gather_emmeans_draws() |> # odds-ratio
+  mutate(.value = exp(.value)) |> # log odds-ratio  
+  summarise(median_hdci(.value),
+            Pl = mean(.value < 1),
+            Pg = mean(.value > 1))#,
+            #.width = c(0.85, 0.95))
+```
+
+# HEATMAP
+
+# summarize abundance per species and plot a heatmap
+
+```{r}
+heatmap_abun <-
+brow_abun_v2 |> 
+   mutate(Species = fct_reorder(Species,
+         desc(Species))) |> 
+  group_by(Depth_band, Species) |> 
+  summarise(sumMaxN = sum(MaxN)) |> 
+  filter(Species != "None") |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10m" = "0-10m",
+                             "20m" = "11-20m",
+                             "30m" = "31-40m",
+                             "50m" = "41-50m")) |> 
+  ggplot(aes(y = Species, x = Depth_band, fill = sumMaxN)) +
+  geom_tile(color = "black",
+            lwd = 0.75,
+            linetype = 1) +
+  scale_fill_gradient(low = "#DDD487",
+                      high = "#E29297") +
+  theme_classic() +
+  theme(legend.position = "none") +
+  ylab("MaxN relative abundance") +
+  xlab("Depth bands") +
+  theme(axis.text.y = element_text(face = "italic"))
+```
+
+# summary table of abundance per depth
+
+```{r}
+brow_abun_v2 |> 
+   mutate(Species = fct_reorder(Species,
+         desc(Species))) |> 
+  group_by(Depth_band, Species) |> 
+  summarise(mean = mean(MaxN))
+```
+
+## ggsave
+
+```{r}
+ggsave("Plots/Fig. X2. Heatmap.jpeg",
+       plot = heatmap_abun, 
+       dpi = 600, 
+       height = 6,
+       width = 6,
+       units = "in")
+```
+
+### ends
