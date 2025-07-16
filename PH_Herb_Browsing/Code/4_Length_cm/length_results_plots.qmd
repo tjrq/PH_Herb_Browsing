@@ -44,6 +44,7 @@ log_length_nd <-
                 -.value) |> 
   summarise_draws(median, 
                   HDInterval::hdi) |> 
+  cbind(vid_replicates = c(12, 12, 12, 6)) |> 
   as.data.frame()
 ```
 
@@ -89,7 +90,12 @@ log_length_nd |>
      theme(
         axis.title = element_text(size = 15),
         axis.text = element_text(size = 12),
-        plot.title = element_text(size = 18))
+        plot.title = element_text(size = 18)) +
+  geom_text(aes(label = vid_replicates,
+                  y = upper + 2,
+                  x = ),
+              position = position_dodge(width = dodge_width),
+              color = "black")
 ```
 
 # COMBINE: abundance and length plots
@@ -113,3 +119,47 @@ ggsave("Plot/Fig X_MaxN_length.jpeg",
 ```
 
 ### end
+
+# FOR PRECOMPLETION
+
+# plot length
+
+```{r}
+p_brow_length <- 
+log_length_nd |> 
+  mutate(Depth_band = recode(Depth_band,
+                             "10m" = "0-10m",
+                             "20m" = "11-20m",
+                             "30m" = "31-40m",
+                             "50m" = "41-50m")) |> 
+  ggplot(aes(x = Depth_band,
+             y = median)) +
+  geom_pointrange(aes(ymin = lower,
+                      ymax = upper),
+                  shape = 21,
+                  size = 3,
+                  fatten = 3,
+                  color = "black",
+                  fill = "blue") +
+  scale_y_continuous(name = "Total length (cm)",
+                     limits = c(0, 50),
+                     breaks = seq(0, 50, by = 10)) +
+  scale_x_discrete(name = "Depth bands") +
+  theme_classic() +
+    #ggtitle("Total herbivores") +
+     theme(
+        axis.title = element_text(size = 30),
+        axis.text = element_text(size = 28),
+        plot.title = element_text(size = 32))
+```
+
+## ggsave
+
+```{r}
+ggsave("Plot/p_brow_length.jpeg",
+       plot = p_brow_length, 
+       dpi = 600, 
+       height = 8, 
+       width = 12, 
+       units = "in")
+```
