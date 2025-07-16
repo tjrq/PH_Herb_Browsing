@@ -67,6 +67,7 @@ emmeans(~ Depth_band,
                   Pl = ~mean(.x < 1),
                   Pg = ~mean(.x > 1)) |> 
   filter(variable == "percentage") |> 
+  cbind(bc_replicates = c(12, 12, 12, 6)) |>
   ggplot(aes(x = Depth_band,
              y = median)) +
   geom_pointrange(aes(ymin = lower, 
@@ -92,7 +93,12 @@ emmeans(~ Depth_band,
   geom_image(data = tibble(Depth_band = 4.2,
                            median = 74),
              aes(image = "Images/acropora-spp.png"),
-             size = 0.30)
+             size = 0.30) +
+   geom_text(aes(label = bc_replicates,
+                  y = upper + 3,
+                  x = ),
+              position = position_dodge(width = dodge_width),
+              color = "black")
 ```
 
 ## pairwise table to compare among depth bands
@@ -170,6 +176,7 @@ emmeans(~ Depth_band,
                   Pl = ~mean(.x < 1),
                   Pg = ~mean(.x > 1)) |> 
   filter(variable == "percentage") |> 
+  cbind(bc_replicates = c(12, 12, 12, 6)) |> 
   mutate(Depth_band = recode(Depth_band,
                              "10m" = "0-10m",
                              "20m" = "11-20m",
@@ -199,7 +206,12 @@ emmeans(~ Depth_band,
   geom_image(data = tibble(Depth_band = 4.2,
                            median = 64),
              aes(image = "Images/sargassum-spp.png"),
-             size = 0.30)
+             size = 0.30) +
+   geom_text(aes(label = bc_replicates,
+                  y = upper + 3,
+                  x = ),
+              position = position_dodge(width = dodge_width),
+              color = "black")
 ```
 
 ## pairwise table to compare among depth bands
