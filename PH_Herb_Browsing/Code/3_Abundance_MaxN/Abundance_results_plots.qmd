@@ -44,6 +44,7 @@ abun_nd <-
                 -.value) |> 
   summarise_draws(median, 
                   HDInterval::hdi) |> 
+  cbind(vid_replicates = c(12, 12, 12, 6)) |>
   as.data.frame()
 ```
 
@@ -80,7 +81,12 @@ abun_nd |>
   geom_image(data = tibble(Depth_band = 4,
                            median = 1.4),
              aes(image = "Images/siganus-spp-rabbitfish.png"),
-             size = 0.30)
+             size = 0.30) +
+   geom_text(aes(label = vid_replicates,
+                  y = upper + 0.1,
+                  x = ),
+              position = position_dodge(width = dodge_width),
+              color = "black")
 ```
 
 ## pairwise
@@ -145,6 +151,62 @@ ggsave("Plots/Fig. X2. Heatmap.jpeg",
        plot = heatmap_abun, 
        dpi = 600, 
        height = 6,
+       width = 6,
+       units = "in")
+```
+
+# PREDATOR MAXN ABUNDANCE
+
+## read csv
+
+```{r}
+pred <- read_csv("Data/MaxN_predators.csv", trim_ws = TRUE)
+```
+
+### prepare database
+
+```{r}
+# sem formula
+se_mean <- function(x) sd(x)/sqrt(length(x))
+
+# summary table
+pred_st <-
+  pred |> 
+    mutate(Depth_band = recode(Depth_band,
+                             "10" = "0-10m",
+                             "20" = "11-20m",
+                             "30" = "31-40m",
+                             "50" = "41-50m")) |> 
+    group_by(Depth_band) |> 
+    summarise(mean_abun = mean(Number),
+            se_abun = se_mean(Number))
+```
+
+```{r}
+p_pred_abun <-
+pred_st |> 
+  ggplot(aes(x = Depth_band,
+             y = mean_abun)) +
+  geom_pointrange(aes(ymin = mean_abun - se_abun,
+                  ymax = mean_abun + se_abun),
+                  position = position_dodge(0.25),
+                  size = 1,
+                  fatten = 3) +
+  scale_y_continuous("Abundance (MaxN)") +
+  scale_x_discrete("Depth band") +
+  theme_classic() +
+  theme(axis.title = element_text(size = 15),
+        axis.text = element_text(size = 12),
+        plot.title = element_text(size = 18))
+```
+
+## ggsave
+
+```{r}
+ggsave("Plots/Fig. X3. PredMaxN.jpeg",
+       plot = p_pred_abun, 
+       dpi = 600, 
+       height = 4,
        width = 6,
        units = "in")
 ```
