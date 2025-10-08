@@ -1,1 +1,1 @@
-This repository contains data and R codes for examing differences in the rates and agents (i.e., fish identity) of macroalgal removal along a depth gradient of 0 - 50m in the Philippines. 
+This repository contains data (csv) and R codes (quarto) for examing differences in the rates and agents (i.e., fish identity) of macroalgal removal along a depth gradient of 0 - 50m in the Philippines. Data has been published in Marine Environmental Research (https://doi.org/10.1016/j.marenvres.2025.107539).
