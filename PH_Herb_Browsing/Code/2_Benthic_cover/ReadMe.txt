@@ -1,0 +1,3 @@
+Model fits are in the quarto file labelled "benthic_cover_fit". This quarto document has the code for all the analyses conducted on benthic cover and how this changes with depth. The quarto document labelled "benthic_cover_results_plots" contains code on the interpretation and figure generation using the models from the "benthic_cover_fit" file. Bayesian model outputs are saved in the folder named "Model_Output".
+
+In the "benthic_cover_results_plots", certain folders related to figure generation: "Images" and "Figures" were deleted for data archiving. These folders simply contained fish or benthic silhouettes and stored the ggplot figures, respectively.

@@ -48,6 +48,7 @@ nu_nd <-
 ```
 
 ## correct values for Nu: 0 for 20m since no observation at 20m
+Note: values at 20m are from the prior
 
 ```{r}
 nu_nd <- 
@@ -175,6 +176,7 @@ nl_nd <-
 ```
 
 # correct values for Nl: 0 for 30m since no observation at 30m
+Note: values at 30m are from the prior
 
 ```{r}
 nl_nd <- 
@@ -256,99 +258,5 @@ ggsave("Plots/Fig. X. bites.jpeg",
        dpi = 600, 
        height = 12, 
        width = 10, 
-       units = "in")
-```
-
-# FOR PRECOMPLETION
-
-# plot Nu
-
-```{r}
-p_bites_nu <-
-nu_nd |> 
-  mutate(Depth_band = recode(Depth_band,
-                             "10m" = "0-10m",
-                             "20m" = "11-20m",
-                             "30m" = "30-40m",
-                             "50m" = "41-50m")) |> 
-  ggplot(aes(x = Depth_band,
-             y = median)) +
-  geom_pointrange(aes(ymin = lower,
-                      ymax = upper),
-                  shape = 21,
-                  size = 3,
-                  fatten = 3,
-                  color = "black",
-                  fill = "red2") +
-  scale_y_continuous(expression(Number~of~bites~(3~h^-1)),
-                     limits = c(0, 75),
-                     breaks = seq(0, 75, by = 25)) +
-  scale_x_discrete(name = "Depth bands") +
-  theme_classic() +
-    ggtitle(expression(italic(Naso~unicornis))) +
-     theme(
-        axis.title = element_text(size = 30),
-        axis.text = element_text(size = 28),
-        plot.title = element_text(size = 32)) +
-  geom_image(data = tibble(Depth_band = 1,
-                           median = 70),
-             aes(image = "Images/naso-unicornis-bluespine-unicornfish.png"),
-             size = 0.40)
-```
-
-## ggsave
-
-```{r}
-ggsave("Plots/p_bites_nu.jpeg",
-       plot = p_bites_nu, 
-       dpi = 600, 
-       height = 8, 
-       width = 12, 
-       units = "in")
-```
-
-# plot Nl
-
-```{r}
-p_bites_nl <-
-nl_nd |> 
-  mutate(Depth_band = recode(Depth_band,
-                             "10m" = "0-10m",
-                             "20m" = "11-20m",
-                             "30m" = "30-40m",
-                             "50m" = "41-50m")) |> 
-  ggplot(aes(x = Depth_band,
-             y = median)) +
-  geom_pointrange(aes(ymin = lower,
-                      ymax = upper),
-                  shape = 21,
-                  size = 3,
-                  fatten = 3,
-                  color = "black",
-                  fill = "blue") +
-  scale_y_continuous(expression(Number~of~bites~(3~h^-1)),
-                     limits = c(0, 250),
-                     breaks = seq(0, 250, by = 50)) +
-  scale_x_discrete(name = "Depth band") +
-  theme_classic() +
-    ggtitle(expression(italic(Naso~lituratus))) +
-     theme(
-        axis.title = element_text(size = 30),
-        axis.text = element_text(size = 28),
-        plot.title = element_text(size = 32)) +
-  geom_image(data = tibble(Depth_band = 1,
-                           median = 240),
-             aes(image = "Images/naso-lituratus-naso-tang.png"),
-             size = 0.40)
-```
-
-## ggsave
-
-```{r}
-ggsave("Plots/p_bites_nl.jpeg",
-       plot = p_bites_nl, 
-       dpi = 600, 
-       height = 8, 
-       width = 12, 
        units = "in")
 ```

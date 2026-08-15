@@ -54,6 +54,8 @@ brow_abun <- read_csv("Data/abundance_MaxN.csv",
 ```{r}
 brow_abun_v2 <- 
   brow_abun |> 
+  filter(Replicate != "v4") |>
+  filter(Replicate != "v5") |> 
   select(Site,
          Depth_band,
          Species,
@@ -180,4 +182,3 @@ save(abun_mod, file = "Model_Outputs/abun_mod.Rdata")
 ```
 
 ##### end
-

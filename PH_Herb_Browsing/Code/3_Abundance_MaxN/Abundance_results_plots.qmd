@@ -182,6 +182,8 @@ pred_st <-
             se_abun = se_mean(Number))
 ```
 
+### plot predator abundance with depth
+
 ```{r}
 p_pred_abun <-
 pred_st |> 

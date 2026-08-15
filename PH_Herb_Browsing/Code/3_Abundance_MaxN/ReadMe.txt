@@ -1,0 +1,3 @@
+Model fits are in the quarto file labelled "Abundance_fits". This quarto document has the code for all the analyses conducted on MaxN fish abundance and how this changes with depth. The quarto document labelled "Abundance_results_plots" contains code on the interpretation and figure generation using the models from the "Abundance_fits" file. Bayesian model outputs are saved in the folder named "Model_Output".
+
+In the "Abundance_results_plots", certain folders related to figure generation: "Images" and "Figures" were deleted for data archiving. These folders simply contained fish or benthic silhouettes and stored the ggplot figures, respectively.

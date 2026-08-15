@@ -6,7 +6,7 @@ editor: visual
 
 # Description
 
-This qmd file runs bayesian coral and macroalgae models, with the cover of coral/macroalgae as the response variables and depth bands as the explanatory variable. 
+This qmd file runs bayesian coral and macroalgae models, with the cover of coral/macroalgae as the response variables and depth bands as the explanatory variable.
 
 # libraries
 

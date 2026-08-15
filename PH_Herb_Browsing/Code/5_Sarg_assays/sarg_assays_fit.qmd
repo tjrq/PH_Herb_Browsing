@@ -4,6 +4,12 @@ format: html
 editor: visual
 ---
 
+```{r}
+rm(list=ls())
+gc()
+```
+
+
 # Description
 
 This qmd examines differences in Sargassum mass loss among depth bands for the 4day and 3 day experiments.

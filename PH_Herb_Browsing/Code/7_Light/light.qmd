@@ -38,10 +38,6 @@ light |>
                    breaks = seq(0, 1000, by = 250))
 ```
 
-```{r}
-ggplot_build(p_light)$data[[1]]
-```
-
 
 # ggsave
 
